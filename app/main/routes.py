@@ -231,6 +231,7 @@ def merchant_dashboard_data():
     result = []
     for p in products:
         result.append({
+            'id': p.id,
             'category': p.category.name if p.category else '未分类',
             'name': p.name,
             'description': p.description,
@@ -250,6 +251,42 @@ def merchant_dashboard_data():
             'has_prev': pagination.has_prev
         }
     })
+
+
+@bp.route('/merchant/product/<int:product_id>', methods=['PUT'])
+@login_required
+def update_product(product_id):
+    if not current_user.is_merchant():
+        return jsonify({'success': False, 'message': '没有权限'}), 403
+
+    product = Product.query.get_or_404(product_id)
+    if product.merchant_id != current_user.id:
+        return jsonify({'success': False, 'message': '不能修改他人商品'}), 403
+
+    data = request.get_json()
+    product.name = data.get('name', product.name)
+    product.description = data.get('description', product.description)
+    product.price = data.get('price', product.price)
+    product.image_url = data.get('image_url', product.image_url)
+    product.category_id = data.get('category_id', product.category_id)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '修改成功'})
+
+
+@bp.route('/merchant/product/<int:product_id>', methods=['DELETE'])
+@login_required
+def delete_product(product_id):
+    if not current_user.is_merchant():
+        return jsonify({'success': False, 'message': '没有权限'}), 403
+
+    product = Product.query.get_or_404(product_id)
+    if product.merchant_id != current_user.id:
+        return jsonify({'success': False, 'message': '不能删除他人商品'}), 403
+
+    db.session.delete(product)
+    db.session.commit()
+    return jsonify({'success': True, 'message': '删除成功'})
 
 
 @bp.route('/merchant/dashboard')

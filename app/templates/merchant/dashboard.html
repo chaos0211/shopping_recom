@@ -332,6 +332,7 @@
 <table class="table table-bordered">
     <thead>
         <tr>
+            <th>ID</th>
             <th>分类</th>
             <th>商品名</th>
             <th>描述</th>
@@ -343,7 +344,8 @@
     </thead>
     <tbody>
         ${products.map(product => `
-            <tr>
+            <tr data-id="${product.id}">
+                <td>${product.id}</td>
                 <td>${product.category || '未分类'}</td>
                 <td title="${product.name}">${product.name.length > 14 ? product.name.substring(0, 14) + '...' : product.name}</td>
                 <td>${product.description || ''}</td>
@@ -351,8 +353,8 @@
                 <td>¥${product.price}</td>
                 <td>${product.created_at}</td>
                 <td>
-                    <button class="btn btn-sm btn-warning me-1">编辑</button>
-                    <button class="btn btn-sm btn-danger">删除</button>
+                    <button class="btn btn-sm btn-warning me-1 edit-button" data-id="${product.id}">编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id})">删除</button>
                 </td>
             </tr>
         `).join('')}
@@ -418,6 +420,111 @@
                 return html;
             }
             container.innerHTML = tableHtml + renderPagination(pagination);
+            // 绑定编辑按钮事件
+            document.querySelectorAll('.edit-button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const productId = btn.getAttribute('data-id');
+                    editProduct(productId);
+                });
+            });
+        }
+
+        // 商品删除函数
+        function deleteProduct(productId) {
+            if (!confirm("确定要删除该商品吗？")) return;
+
+            fetch(`/merchant/product/${productId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadProducts(currentProductPage);
+                } else {
+                    alert('删除失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除失败');
+            });
+        }
+
+        // 商品编辑函数（模态框方式）
+        function editProduct(productId) {
+            // console.log("Editing product id:", productId);
+            const editButton = document.querySelector(`.edit-button[data-id="${productId}"]`);
+            if (!editButton) {
+                alert('找不到该商品行，可能已被删除');
+                return;
+            }
+
+            const row = document.querySelector(`tr[data-id="${productId}"]`);
+            if (!row) {
+                alert('找不到该商品所在的表格行');
+                return;
+            }
+
+            // 显式设置隐藏的商品ID输入
+            document.getElementById('editProductId').value = productId;
+            // 调试语句，确认隐藏字段是否成功设置
+            // console.log("设置隐藏字段editProductId值为:", document.getElementById('editProductId').value);
+            const name = row.querySelector('td:nth-child(2)').getAttribute('title');
+            const description = row.querySelector('td:nth-child(3)').textContent.trim();
+            const imageUrl = row.querySelector('img').getAttribute('src');
+            const price = row.querySelector('td:nth-child(5)').textContent.replace('¥', '').trim();
+
+            document.getElementById('editProductName').value = name;
+            document.getElementById('editProductDesc').value = description;
+            document.getElementById('editProductPreview').src = imageUrl;
+            document.getElementById('editProductPrice').value = price;
+
+            document.getElementById('editProductImage').value = '';
+            const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            editModal.show();
+        }
+
+        function submitEditProduct() {
+            // 确保id已正确设置
+            const id = document.getElementById('editProductId')?.value;
+            if (!id || id === 'undefined') {
+                console.error("未获取到有效的商品ID，当前值为：", id);
+                alert("保存失败：未获取到有效的商品ID");
+                return;
+            }
+            const name = document.getElementById('editProductName').value;
+            const description = document.getElementById('editProductDesc').value;
+            const price = parseFloat(document.getElementById('editProductPrice').value);
+            const imageUrl = document.getElementById('editProductPreview').src.replace(/^https?:\/\/[^/]+\/?/, '');  // 相对路径
+
+            const payload = {
+                name: name,
+                description: description,
+                price: price,
+                image_url: imageUrl
+            };
+
+            fetch('/merchant/product/' + encodeURIComponent(id), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('修改成功');
+                    bootstrap.Modal.getInstance(document.getElementById('editProductModal')).hide();
+                    loadProducts(currentProductPage);
+                } else {
+                    alert('修改失败：' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error("修改失败:", err);
+                alert("修改失败");
+            });
         }
 
         function loadAnalytics() {
@@ -553,5 +660,47 @@
             }
         }
     </script>
+
+    <!-- 编辑商品模态框 -->
+    <div class="modal fade" id="editProductModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑商品</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProductForm">
+                        <input type="hidden" id="editProductId">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">商品名称</label>
+                                <input type="text" class="form-control" id="editProductName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">商品价格</label>
+                                <input type="number" class="form-control" id="editProductPrice" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">商品描述</label>
+                                <textarea class="form-control" id="editProductDesc" rows="3"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">更换图片</label>
+                                <input type="file" class="form-control" id="editProductImage">
+                            </div>
+                            <div class="col-md-6">
+                                <img id="editProductPreview" src="" class="img-thumbnail mt-4" style="max-height:100px;">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditProduct()">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 </body>

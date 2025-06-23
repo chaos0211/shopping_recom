@@ -37,8 +37,8 @@ def create_app(config_class=Config):
     @app.route('/shopping_crawl/<path:filename>')
     def serve_tmall_images(filename):
         base_path = os.path.abspath(os.path.join(app.root_path, '..', 'shopping_crawl'))
-        app.logger.warning(f"[DEBUG] Serving image: {filename}")
-        app.logger.warning(f"[DEBUG] Correct absolute path: {base_path}")
+        # app.logger.warning(f"[DEBUG] Serving image: {filename}")
+        # app.logger.warning(f"[DEBUG] Correct absolute path: {base_path}")
         return send_from_directory(base_path, filename)
 
     @login_manager.user_loader
