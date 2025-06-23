@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的收藏 - 购物推荐系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .favorite-item {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .favorite-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .product-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .tab-custom {
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #6c757d;
+        }
+        .tab-custom.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+            background: none;
+        }
+        .price-tag {
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .rating-stars {
+            color: #ffc107;
+        }
+        .favorite-time {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- 头部 -->
+    <div class="bg-white shadow-sm">
+        <div class="container">
+            <div class="d-flex align-items-center py-3">
+                <a href="{{ url_for('main.profile') }}" class="btn btn-link text-decoration-none me-2">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <i class="fas fa-heart text-danger me-2"></i>
+                <h4 class="mb-0">我的收藏</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-3">
+        <!-- 标签页 -->
+        <ul class="nav nav-tabs justify-content-center mb-4">
+            <li class="nav-item">
+                <button class="nav-link tab-custom active" data-type="restaurants" onclick="switchTab('restaurants')">
+                    商家 (<span id="restaurantCount">0</span>)
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link tab-custom" data-type="products" onclick="switchTab('products')">
+                    商品 (<span id="productCount">0</span>)
+                </button>
+            </li>
+        </ul>
+
+        <!-- 收藏列表 -->
+        <div id="favoritesList">
+            <!-- 数据将通过JavaScript动态加载 -->
+        </div>
+
+        <!-- 空状态 -->
+        <div id="emptyState" class="text-center py-5" style="display: none;">
+            <i class="fas fa-heart fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">暂无收藏</h5>
+            <p class="text-muted">快去收藏你喜欢的商家和商品吧</p>
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">去逛逛</a>
+        </div>
+    </div>
+
+    <!-- 取消收藏确认模态框 -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-heart-broken fa-2x text-muted mb-3"></i>
+                    <p>确定要取消收藏吗？</p>
+                </div>
+                <div class="modal-footer justify-content-center border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmRemove">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentTab = 'restaurants';
+        let currentRemoveId = null;
+        const apiFavoritesUrl = "{{ url_for('main.favorites') }}";
+
+        // 页面加载时获取收藏数据
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFavorites();
+        });
+
+        function switchTab(type) {
+            currentTab = type;
+
+            // 更新标签样式
+            document.querySelectorAll('.tab-custom').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+
+            loadFavorites();
+        }
+
+        function loadFavorites() {
+            fetch(`${apiFavoritesUrl}?type=${currentTab}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderFavorites(data.favorites);
+                        updateCounts(data.counts);
+                    } else {
+                        console.error('加载收藏失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function renderFavorites(favorites) {
+            const container = document.getElementById('favoritesList');
+            const emptyState = document.getElementById('emptyState');
+
+            if (favorites.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            const html = favorites.map(item => {
+                if (currentTab === 'restaurants') {
+                    return renderRestaurantCard(item);
+                } else {
+                    return renderProductCard(item);
+                }
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderRestaurantCard(restaurant) {
+            return `
+                <div class="card favorite-item mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <img src="${restaurant.image || "{{ url_for('static', filename='images/restaurant-placeholder.png') }}"}"
+                                     alt="${restaurant.name}" class="product-image">
+                            </div>
+                            <div class="col">
+                                <h6 class="mb-1">${restaurant.name}</h6>
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-secondary me-2">${restaurant.category}</span>
+                                    <div class="rating-stars me-2">
+                                        ${'★'.repeat(Math.floor(restaurant.rating))}${'☆'.repeat(5-Math.floor(restaurant.rating))}
+                                    </div>
+                                    <small class="text-muted">${restaurant.rating}</small>
+                                </div>
+                                <div class="d-flex align-items-center text-muted small">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    <span class="me-3">${restaurant.distance}</span>
+                                    <span>人均¥${restaurant.avg_price}</span>
+                                </div>
+                                <div class="favorite-time mt-2">
+                                    <i class="fas fa-clock me-1"></i>
+                                    收藏于 ${restaurant.favorite_time}
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="btn-group-vertical">
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            onclick="removeFavorite(${restaurant.id}, 'restaurant')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1">
+                                        <i class="fas fa-share"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col">
+                                <button class="btn btn-primary btn-sm w-100">立即预订</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProductCard(product) {
+            return `
+                <div class="card favorite-item mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <img src="${product.image || "{{ url_for('static', filename='images/product-placeholder.png') }}"}"
+                                     alt="${product.name}" class="product-image">
+                            </div>
+                            <div class="col">
+                                <h6 class="mb-1">${product.name}</h6>
+                                <p class="text-muted small mb-2">${product.restaurant}</p>
+                                <p class="text-muted small mb-2">${product.description}</p>
+                                <div class="favorite-time">
+                                    <i class="fas fa-clock me-1"></i>
+                                    收藏于 ${product.favorite_time}
+                                </div>
+                            </div>
+                            <div class="col-auto text-end">
+                                <div class="price-tag mb-2">¥${product.price}</div>
+                                <div class="btn-group-vertical">
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            onclick="removeFavorite(${product.id}, 'product')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1">
+                                        <i class="fas fa-share"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col">
+                                <button class="btn btn-primary btn-sm w-100">立即点餐</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCounts(counts) {
+            document.getElementById('restaurantCount').textContent = counts.restaurants || 0;
+            document.getElementById('productCount').textContent = counts.products || 0;
+        }
+
+        function removeFavorite(id, type) {
+            currentRemoveId = { id, type };
+            new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        }
+
+        document.getElementById('confirmRemove').addEventListener('click', function() {
+            if (currentRemoveId) {
+                fetch(apiFavoritesUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(currentRemoveId)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadFavorites();
+                        bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+                    } else {
+                        alert('取消收藏失败：' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('取消收藏失败');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

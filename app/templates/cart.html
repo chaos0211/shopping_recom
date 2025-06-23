@@ -1,0 +1,507 @@
+<!-- templates/cart.html -->
+{% extends "base.html" %}
+
+{% block title %}购物车 - 智能购物推荐系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-shopping-cart"></i> 购物车</h5>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    <label class="form-check-label" for="selectAll">全选</label>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if cart_items %}
+                    {% for item in cart_items %}
+                    <div class="row align-items-center border-bottom py-3 cart-item" data-item-id="{{ item.id }}">
+                        <div class="col-md-1">
+                            <div class="form-check">
+                                <input class="form-check-input item-checkbox" type="checkbox"
+                                       value="{{ item.id }}" onchange="updateTotal()">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <img src="{{ item.product.image_url or '/static/images/default-product.jpg' }}"
+                                 class="img-fluid rounded" alt="{{ item.product.name }}">
+                        </div>
+                        <div class="col-md-4">
+                            <h6><a href="{{ url_for('product_detail', id=item.product.id) }}" class="text-decoration-none">
+                                {{ item.product.name }}
+                            </a></h6>
+                            {% if item.attributes %}
+                            <small class="text-muted">
+                                {% for key, value in item.attributes.items() %}
+                                {{ key }}: {{ value }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </small>
+                            {% endif %}
+                            <div class="mt-2">
+                                <button class="btn btn-link btn-sm p-0 text-muted" onclick="removeFromCart({{ item.id }})">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                                <button class="btn btn-link btn-sm p-0 text-muted ms-3" onclick="moveToFavorites({{ item.id }})">
+                                    <i class="fas fa-heart"></i> 移入收藏
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="h6 text-danger">¥{{ "%.2f"|format(item.product.price) }}</span>
+                            {% if item.product.original_price and item.product.original_price > item.product.price %}
+                            <br><small class="text-muted text-decoration-line-through">
+                                ¥{{ "%.2f"|format(item.product.original_price) }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2">
+                            <div class="input-group input-group-sm">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        onclick="updateQuantity({{ item.id }}, -1)">-</button>
+                                <input type="number" class="form-control text-center quantity-input"
+                                       value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}"
+                                       onchange="updateQuantity({{ item.id }}, 0, this.value)">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        onclick="updateQuantity({{ item.id }}, 1)">+</button>
+                            </div>
+                            <small class="text-muted">库存{{ item.product.stock }}件</small>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <span class="h6 text-danger item-total">
+                                ¥{{ "%.2f"|format(item.product.price * item.quantity) }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- 推荐商品 -->
+                    <div class="mt-4">
+                        <h6>为您推荐</h6>
+                        <div class="row" id="recommendations">
+                            <!-- 推荐商品通过AJAX加载 -->
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">购物车是空的</h5>
+                        <p class="text-muted">快去挑选喜欢的商品吧！</p>
+                        <a href="{{ url_for('main.products') }}" class="btn btn-primary">去购物</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 订单汇总 -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>订单汇总</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>商品总价:</span>
+                    <span id="subtotal">¥0.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>运费:</span>
+                    <span id="shipping">¥0.00</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>优惠券:</span>
+                    <span class="text-success" id="coupon">-¥0.00</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <strong>总计:</strong>
+                    <strong class="text-danger" id="total">¥0.00</strong>
+                </div>
+
+                <!-- 优惠券选择 -->
+                <div class="mb-3">
+                    <label class="form-label">优惠券</label>
+                    <select class="form-select" id="couponSelect" onchange="applyCoupon()">
+                        <option value="">请选择优惠券</option>
+                        {% for coupon in available_coupons %}
+                        <option value="{{ coupon.id }}" data-discount="{{ coupon.discount }}" data-min-amount="{{ coupon.min_amount }}">
+                            {{ coupon.name }} (满{{ coupon.min_amount }}减{{ coupon.discount }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 配送地址 -->
+                <div class="mb-3">
+                    <label class="form-label">配送至</label>
+                    <select class="form-select" id="addressSelect" onchange="updateShipping()">
+                        <option value="">请选择收货地址</option>
+                        {% for address in user_addresses %}
+                        <option value="{{ address.id }}">
+                            {{ address.province }} {{ address.city }} {{ address.district }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">
+                        <a href="{{ url_for('address_management') }}">管理收货地址</a>
+                    </small>
+                </div>
+
+                <div class="d-grid">
+                    <button class="btn btn-danger btn-lg" onclick="checkout()" id="checkoutBtn" disabled>
+                        结算 (<span id="selectedCount">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近浏览 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6>最近浏览</h6>
+            </div>
+            <div class="card-body">
+                <div id="recentViewed">
+                    <!-- 最近浏览商品通过AJAX加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                确定要删除这个商品吗？
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let deleteItemId = null;
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+
+    itemCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+
+    updateTotal();
+}
+
+function updateTotal() {
+    const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const allCheckboxes = document.querySelectorAll('.item-checkbox');
+
+    // 更新全选状态
+    selectAllCheckbox.checked = selectedItems.length === allCheckboxes.length && allCheckboxes.length > 0;
+
+    let subtotal = 0;
+    selectedItems.forEach(checkbox => {
+        const itemRow = checkbox.closest('.cart-item');
+        const price = parseFloat(itemRow.querySelector('.h6.text-danger').textContent.replace('¥', ''));
+        const quantity = parseInt(itemRow.querySelector('.quantity-input').value);
+        subtotal += price * quantity;
+    });
+
+    document.getElementById('subtotal').textContent = `¥${subtotal.toFixed(2)}`;
+    document.getElementById('selectedCount').textContent = selectedItems.length;
+
+    // 计算运费
+    updateShipping();
+
+    // 应用优惠券
+    applyCoupon();
+
+    // 更新结算按钮状态
+    document.getElementById('checkoutBtn').disabled = selectedItems.length === 0;
+}
+
+function updateQuantity(itemId, delta, newValue = null) {
+    const itemRow = document.querySelector(`[data-item-id="${itemId}"]`);
+    const quantityInput = itemRow.querySelector('.quantity-input');
+    const maxStock = parseInt(quantityInput.getAttribute('max'));
+
+    let quantity;
+    if (newValue !== null) {
+        quantity = parseInt(newValue);
+    } else {
+        quantity = parseInt(quantityInput.value) + delta;
+    }
+
+    quantity = Math.max(1, Math.min(quantity, maxStock));
+    quantityInput.value = quantity;
+
+    // 发送更新请求
+    axios.post('/api/cart/update', {
+        item_id: itemId,
+        quantity: quantity
+    })
+    .then(response => {
+        if (response.data.success) {
+            // 更新商品小计
+            const price = parseFloat(itemRow.querySelector('.h6.text-danger').textContent.replace('¥', ''));
+            const itemTotal = itemRow.querySelector('.item-total');
+            itemTotal.textContent = `¥${(price * quantity).toFixed(2)}`;
+
+            updateTotal();
+        }
+    })
+    .catch(error => {
+        showAlert('更新失败，请重试', 'error');
+    });
+}
+
+function removeFromCart(itemId) {
+    deleteItemId = itemId;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function confirmDelete() {
+    axios.post('/api/cart/remove', {item_id: deleteItemId})
+        .then(response => {
+            if (response.data.success) {
+                document.querySelector(`[data-item-id="${deleteItemId}"]`).remove();
+                updateTotal();
+                showAlert('商品已删除', 'success');
+            }
+        })
+        .catch(error => {
+            showAlert('删除失败，请重试', 'error');
+        });
+
+    bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+}
+
+function moveToFavorites(itemId) {
+    const itemRow = document.querySelector(`[data-item-id="${itemId}"]`);
+    const productId = itemRow.querySelector('a').href.split('/').pop();
+
+    // 添加到收藏
+    axios.post('/api/favorites/add', {product_id: productId})
+        .then(response => {
+            if (response.data.success) {
+                // 从购物车删除
+                return axios.post('/api/cart/remove', {item_id: itemId});
+            }
+        })
+        .then(response => {
+            if (response.data.success) {
+                itemRow.remove();
+                updateTotal();
+                showAlert('已移入收藏夹', 'success');
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败，请重试', 'error');
+        });
+}
+
+function updateShipping() {
+    const addressSelect = document.getElementById('addressSelect');
+    const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+
+    if (addressSelect.value && selectedItems.length > 0) {
+        // 根据地址和商品计算运费
+        axios.post('/api/shipping/calculate', {
+            address_id: addressSelect.value,
+            items: Array.from(selectedItems).map(cb => cb.value)
+        })
+        .then(response => {
+            document.getElementById('shipping').textContent = `¥${response.data.shipping_fee.toFixed(2)}`;
+            calculateFinalTotal();
+        });
+    } else {
+        document.getElementById('shipping').textContent = '¥0.00';
+        calculateFinalTotal();
+    }
+}
+
+function applyCoupon() {
+    const couponSelect = document.getElementById('couponSelect');
+    const subtotalText = document.getElementById('subtotal').textContent;
+    const subtotal = parseFloat(subtotalText.replace('¥', ''));
+
+    let discount = 0;
+    if (couponSelect.value) {
+        const selectedOption = couponSelect.selectedOptions[0];
+        const minAmount = parseFloat(selectedOption.dataset.minAmount);
+        const discountAmount = parseFloat(selectedOption.dataset.discount);
+
+        if (subtotal >= minAmount) {
+            discount = discountAmount;
+        } else {
+            showAlert(`此优惠券需满¥${minAmount}使用`, 'warning');
+            couponSelect.value = '';
+        }
+    }
+
+    document.getElementById('coupon').textContent = `-¥${discount.toFixed(2)}`;
+    calculateFinalTotal();
+}
+
+function calculateFinalTotal() {
+    const subtotalText = document.getElementById('subtotal').textContent;
+    const shippingText = document.getElementById('shipping').textContent;
+    const couponText = document.getElementById('coupon').textContent;
+
+    const subtotal = parseFloat(subtotalText.replace('¥', ''));
+    const shipping = parseFloat(shippingText.replace('¥', ''));
+    const coupon = parseFloat(couponText.replace('-¥', ''));
+
+    const total = subtotal + shipping - coupon;
+    document.getElementById('total').textContent = `¥${total.toFixed(2)}`;
+}
+
+function checkout() {
+    const selectedItems = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => cb.value);
+    const addressId = document.getElementById('addressSelect').value;
+    const couponId = document.getElementById('couponSelect').value;
+
+    if (selectedItems.length === 0) {
+        showAlert('请选择要结算的商品', 'warning');
+        return;
+    }
+
+    if (!addressId) {
+        showAlert('请选择收货地址', 'warning');
+        return;
+    }
+
+    // 跳转到结算页面
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/checkout';
+
+    selectedItems.forEach(itemId => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'items[]';
+        input.value = itemId;
+        form.appendChild(input);
+    });
+
+    if (addressId) {
+        const addressInput = document.createElement('input');
+        addressInput.type = 'hidden';
+        addressInput.name = 'address_id';
+        addressInput.value = addressId;
+        form.appendChild(addressInput);
+    }
+
+    if (couponId) {
+        const couponInput = document.createElement('input');
+        couponInput.type = 'hidden';
+        couponInput.name = 'coupon_id';
+        couponInput.value = couponId;
+        form.appendChild(couponInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function loadRecommendations() {
+    axios.get('/api/cart/recommendations')
+        .then(response => {
+            const container = document.getElementById('recommendations');
+            response.data.forEach(product => {
+                container.innerHTML += `
+                    <div class="col-md-6 mb-2">
+                        <div class="card card-hover">
+                            <div class="row g-0">
+                                <div class="col-4">
+                                    <img src="${product.image_url || '/static/images/default-product.jpg'}"
+                                         class="img-fluid rounded-start h-100 object-fit-cover">
+                                </div>
+                                <div class="col-8">
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title small">${product.name}</h6>
+                                        <p class="text-danger small mb-1">¥${product.price.toFixed(2)}</p>
+                                        <button class="btn btn-outline-primary btn-sm" onclick="addToCart(${product.id})">
+                                            加入购物车
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+}
+
+function loadRecentViewed() {
+    axios.get('/api/history/recent')
+        .then(response => {
+            const container = document.getElementById('recentViewed');
+            response.data.forEach(product => {
+                container.innerHTML += `
+                    <div class="d-flex mb-2">
+                        <img src="${product.image_url || '/static/images/default-product.jpg'}"
+                             class="rounded me-2" width="50" height="50">
+                        <div class="flex-fill">
+                            <h6 class="small mb-1">
+                                <a href="/product/${product.id}" class="text-decoration-none">${product.name}</a>
+                            </h6>
+                            <p class="text-danger small mb-0">¥${product.price.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+}
+
+function addToCart(productId) {
+    axios.post('/api/cart/add', {product_id: productId, quantity: 1})
+        .then(response => {
+            if (response.data.success) {
+                showAlert('已添加到购物车', 'success');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            showAlert('添加失败，请重试', 'error');
+        });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('main').insertBefore(alertDiv, document.querySelector('main').firstChild);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    updateTotal();
+    loadRecommendations();
+    loadRecentViewed();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-WTF
+Flask-Migrate
+WTForms
+PyMySQL
+SQLAlchemy
+pyspark
+pandas
+numpy
+scikit-learn
+bcrypt
+python-dotenv

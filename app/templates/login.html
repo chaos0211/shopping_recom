@@ -1,0 +1,115 @@
+<!-- templates/login.html -->
+{% extends "base.html" %}
+
+{% block title %}用户登录 - 智能购物推荐系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card">
+            <div class="card-header text-center">
+                <h3>用户登录</h3>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('auth.login') }}" method="POST" id="loginForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名或邮箱</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword()">
+                                <i class="fas fa-eye" id="passwordToggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
+                        <label class="form-check-label" for="remember_me">记住我</label>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">登录</button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-3">
+                    <p><a href="{{ url_for('auth.forgot_password') }}">忘记密码？</a></p>
+                    <p>还没有账号？ <a href="{{ url_for('auth.register') }}">立即注册</a></p>
+                </div>
+
+                <hr>
+
+                <!-- 第三方登录 -->
+                <div class="text-center">
+                    <p class="text-muted">其他登录方式</p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm">
+                            <i class="fab fa-qq"></i> QQ
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm">
+                            <i class="fab fa-weixin"></i> 微信
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm">
+                            <i class="fab fa-weibo"></i> 微博
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.className = 'fas fa-eye';
+    }
+}
+
+// 表单验证
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!username) {
+        e.preventDefault();
+        alert('请输入用户名或邮箱！');
+        return false;
+    }
+
+    if (!password) {
+        e.preventDefault();
+        alert('请输入密码！');
+        return false;
+    }
+});
+
+// 检查是否有返回URL
+const urlParams = new URLSearchParams(window.location.search);
+const returnUrl = urlParams.get('next');
+if (returnUrl) {
+    document.getElementById('loginForm').addEventListener('submit', function() {
+        const form = this;
+        const nextInput = document.createElement('input');
+        nextInput.type = 'hidden';
+        nextInput.name = 'next';
+        nextInput.value = returnUrl;
+        form.appendChild(nextInput);
+    });
+}
+</script>
+{% endblock %}

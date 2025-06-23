@@ -1,0 +1,169 @@
+<!-- templates/register.html -->
+{% extends "base.html" %}
+
+{% block title %}用户注册 - 智能购物推荐系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header text-center">
+                <h3>用户注册</h3>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('auth.register') }}" method="POST" id="registerForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                        <div class="form-text">用户名长度为3-20个字符</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">手机号</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="form-text">密码长度至少6位</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">确认密码</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="user_type" class="form-label">用户类型</label>
+                        <select class="form-select" id="user_type" name="user_type" required>
+                            <option value="">请选择用户类型</option>
+                            <option value="customer">普通用户</option>
+                            <option value="merchant">商家用户</option>
+                        </select>
+                    </div>
+
+                    <div id="merchant_fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="store_name" class="form-label">店铺名称</label>
+                            <input type="text" class="form-control" id="store_name" name="store_name">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="business_license" class="form-label">营业执照号</label>
+                            <input type="text" class="form-control" id="business_license" name="business_license">
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="agree_terms" name="agree_terms" required>
+                        <label class="form-check-label" for="agree_terms">
+                            我同意 <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">用户协议</a> 和 <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal">隐私政策</a>
+                        </label>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">注册</button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-3">
+                    <p>已有账号？ <a href="{{ url_for('auth.login') }}">立即登录</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 用户协议模态框 -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">用户协议</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. 服务条款</h6>
+                <p>用户在使用本平台服务时，必须遵守相关法律法规和平台规定...</p>
+
+                <h6>2. 用户权利与义务</h6>
+                <p>用户有权享受平台提供的各项服务，同时应承担相应的义务...</p>
+
+                <h6>3. 平台责任</h6>
+                <p>平台将尽力为用户提供优质的服务，但不承担因不可抗力造成的损失...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 隐私政策模态框 -->
+<div class="modal fade" id="privacyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">隐私政策</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. 信息收集</h6>
+                <p>我们收集用户提供的信息以及使用服务时产生的信息...</p>
+
+                <h6>2. 信息使用</h6>
+                <p>收集的信息将用于提供服务、改善用户体验等目的...</p>
+
+                <h6>3. 信息保护</h6>
+                <p>我们采用合理的安全措施保护用户隐私信息...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('user_type').addEventListener('change', function() {
+    const merchantFields = document.getElementById('merchant_fields');
+    const storeNameInput = document.getElementById('store_name');
+    const businessLicenseInput = document.getElementById('business_license');
+
+    if (this.value === 'merchant') {
+        merchantFields.style.display = 'block';
+        storeNameInput.required = true;
+        businessLicenseInput.required = true;
+    } else {
+        merchantFields.style.display = 'none';
+        storeNameInput.required = false;
+        businessLicenseInput.required = false;
+    }
+});
+
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('两次输入的密码不一致！');
+        return false;
+    }
+
+    if (password.length < 6) {
+        e.preventDefault();
+        alert('密码长度至少6位！');
+        return false;
+    }
+});
+</script>
+{% endblock %}

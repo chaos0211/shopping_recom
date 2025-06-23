@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+<body class="bg-light">
+{% block content %}
+    <!-- 头部 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-store me-2"></i>
+                商家后台
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/profile">
+                    <i class="fas fa-user me-1"></i>
+                    个人中心
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 标签页导航 -->
+        <ul class="nav nav-tabs justify-content-center mb-4">
+            <li class="nav-item">
+                <button class="nav-link tab-custom active" data-tab="overview" onclick="switchTab('overview')">
+                    <i class="fas fa-chart-bar me-2"></i>概览
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link tab-custom" data-tab="products" onclick="switchTab('products')">
+                    <i class="fas fa-box-open me-2"></i>商品管理
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link tab-custom" data-tab="orders" onclick="switchTab('orders')">
+                    <i class="fas fa-receipt me-2"></i>订单管理
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link tab-custom" data-tab="analytics" onclick="switchTab('analytics')">
+                    <i class="fas fa-chart-line me-2"></i>数据分析
+                </button>
+            </li>
+        </ul>
+
+        <!-- 概览标签页 -->
+        <div id="overviewTab" class="tab-content">
+            <!-- 统计卡片 -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card revenue h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-dollar-sign fa-2x mb-3"></i>
+                            <h3 class="mb-1" id="totalRevenue">¥0</h3>
+                            <p class="mb-0 opacity-75">总销售额</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card orders h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-shopping-cart fa-2x mb-3"></i>
+                            <h3 class="mb-1" id="totalOrders">0</h3>
+                            <p class="mb-0 opacity-75">总订单数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card rating h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-star fa-2x mb-3"></i>
+                            <h3 class="mb-1" id="avgRating">0</h3>
+                            <p class="mb-0 opacity-75">平均评分</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card restaurants h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-box-open fa-2x mb-3"></i>
+                            <h3 class="mb-1" id="activeProducts">0</h3>
+                            <p class="mb-0 opacity-75">上架商品数</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近订单 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">最近订单</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>订单ID</th>
+                                    <th>商品</th>
+                                    <th>客户</th>
+                                    <th>金额</th>
+                                    <th>状态</th>
+                                    <th>时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentOrdersTable">
+                                <!-- 动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品管理标签页 -->
+        <div id="productsTab" class="tab-content" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <h4 class="me-3">商品管理</h4>
+                    <select id="categoryFilter" class="form-select" style="width: 180px;" onchange="loadProducts(1)">
+                        <option value="">全部分类</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                    <i class="fas fa-plus me-2"></i>添加商品
+                </button>
+            </div>
+            <div id="productsList">
+                <!-- 动态加载商品列表 -->
+            </div>
+        </div>
+
+        <!-- 订单管理标签页 -->
+        <div id="ordersTab" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">订单管理</h5>
+                    <p class="text-muted">订单管理功能开发中...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据分析标签页 -->
+        <div id="analyticsTab" class="tab-content" style="display: none;">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">收入趋势</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="revenueChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">订单趋势</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="ordersChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加商品模态框 -->
+    <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加商品</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="productName" class="form-label">商品名称</label>
+                                <input type="text" class="form-control" id="productName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="category" class="form-label">类目</label>
+                                <select class="form-select" id="category" required>
+                                    <option value="">选择类目</option>
+                                    <option value="数码">数码</option>
+                                    <option value="家居">家居</option>
+                                    <option value="服饰">服饰</option>
+                                    <option value="美妆">美妆</option>
+                                    <option value="食品">食品</option>
+                                    <option value="运动">运动</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label for="address" class="form-label">产地</label>
+                                <input type="text" class="form-control" id="address" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">联系方式</label>
+                                <input type="tel" class="form-control" id="phone" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="price" class="form-label">商品价格</label>
+                                <input type="number" class="form-control" id="price" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="addProduct()">添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentTab = 'overview';
+        let revenueChart, ordersChart;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOverviewData();
+        });
+
+        function switchTab(tabName) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+
+            // 更新标签样式
+            document.querySelectorAll('.tab-custom').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // 显示当前标签页
+            if(tabName === 'products') {
+                document.getElementById('productsTab').style.display = 'block';
+            } else {
+                document.getElementById(tabName + 'Tab').style.display = 'block';
+            }
+
+            currentTab = tabName;
+
+            // 根据标签页加载相应数据
+            switch(tabName) {
+                case 'overview':
+                    loadOverviewData();
+                    break;
+                case 'products':
+                    loadCategories();
+                    loadProducts();
+                    break;
+                case 'analytics':
+                    loadAnalytics();
+                    break;
+            }
+        }
+
+        function loadOverviewData() {
+            fetch('/api/merchant/overview')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateOverviewStats(data.stats);
+                        renderRecentOrders(data.recent_orders);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function updateOverviewStats(stats) {
+            document.getElementById('totalRevenue').textContent = `¥${stats.total_revenue.toLocaleString()}`;
+            document.getElementById('totalOrders').textContent = stats.total_orders;
+            document.getElementById('avgRating').textContent = stats.avg_rating.toFixed(1);
+            document.getElementById('activeProducts').textContent = stats.active_products;
+        }
+
+        function renderRecentOrders(orders) {
+            const tbody = document.getElementById('recentOrdersTable');
+            tbody.innerHTML = orders.map(order => `
+                <tr>
+                    <td>#${order.id}</td>
+                    <td>${order.product}</td>
+                    <td>${order.customer}</td>
+                    <td>¥${order.amount}</td>
+                    <td>
+                        <span class="status-badge ${getStatusClass(order.status)}">
+                            ${getStatusText(order.status)}
+                        </span>
+                    </td>
+                    <td>${order.time}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary">查看</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 支持分页加载商品
+        let currentProductPage = 1;
+        function loadProducts(page = 1) {
+            currentProductPage = page;
+            const selectedCategoryId = document.getElementById('categoryFilter')?.selectedOptions[0]?.getAttribute('data-id') || '';
+            fetch(`/merchant/dashboard/data?page=${page}&category_id=${encodeURIComponent(selectedCategoryId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderProducts(data.products, data.pagination);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderProducts(products, pagination) {
+            const container = document.getElementById('productsList');
+            // 渲染表格
+            let tableHtml = `
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>分类</th>
+            <th>商品名</th>
+            <th>描述</th>
+            <th>图片</th>
+            <th>价格</th>
+            <th>上传时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        ${products.map(product => `
+            <tr>
+                <td>${product.category || '未分类'}</td>
+                <td title="${product.name}">${product.name.length > 14 ? product.name.substring(0, 14) + '...' : product.name}</td>
+                <td>${product.description || ''}</td>
+                <td><img src="/${product.image_url}"  style="width: 60px; height: 60px; object-fit: cover;"></td>
+                <td>¥${product.price}</td>
+                <td>${product.created_at}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning me-1">编辑</button>
+                    <button class="btn btn-sm btn-danger">删除</button>
+                </td>
+            </tr>
+        `).join('')}
+    </tbody>
+</table>`;
+            // 分页控件
+            function renderPagination(pagination) {
+                if (!pagination || pagination.pages <= 1) return '';
+                const currentPage = pagination.page;
+                const totalPages = pagination.pages;
+                const range = 1;  // 显示当前页前后的页码范围
+
+                function pageItem(i) {
+                    return `
+                        <li class="page-item${i === currentPage ? ' active' : ''}">
+                            <button class="page-link" type="button" onclick="loadProducts(${i})">${i}</button>
+                        </li>
+                    `;
+                }
+
+                let html = '<nav><ul class="pagination justify-content-center">';
+                // 上一页按钮
+                if (currentPage > 1) {
+                    html += `
+                        <li class="page-item">
+                            <button class="page-link" type="button" onclick="loadProducts(${currentPage - 1})">上一页</button>
+                        </li>
+                    `;
+                }
+
+                // 首页
+                html += pageItem(1);
+
+                // 前面的省略号
+                if (currentPage > range + 2) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+
+                // 中间页码
+                for (let i = Math.max(2, currentPage - range); i <= Math.min(totalPages - 1, currentPage + range); i++) {
+                    html += pageItem(i);
+                }
+
+                // 后面的省略号
+                if (currentPage < totalPages - range - 1) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+
+                // 末页
+                if (totalPages > 1) {
+                    html += pageItem(totalPages);
+                }
+
+                // 下一页按钮
+                if (currentPage < totalPages) {
+                    html += `
+                        <li class="page-item">
+                            <button class="page-link" type="button" onclick="loadProducts(${currentPage + 1})">下一页</button>
+                        </li>
+                    `;
+                }
+                html += '</ul></nav>';
+                return html;
+            }
+            container.innerHTML = tableHtml + renderPagination(pagination);
+        }
+
+        function loadAnalytics() {
+            fetch('/api/merchant/analytics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderCharts(data);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderCharts(data) {
+            // 收入趋势图
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            if (revenueChart) revenueChart.destroy();
+
+            revenueChart = new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: data.revenue_trend.labels,
+                    datasets: [{
+                        label: '收入',
+                        data: data.revenue_trend.data,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 订单趋势图
+            const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+            if (ordersChart) ordersChart.destroy();
+
+            ordersChart = new Chart(ordersCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.orders_trend.labels,
+                    datasets: [{
+                        label: '订单数',
+                        data: data.orders_trend.data,
+                        backgroundColor: '#28a745'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function addProduct() {
+            const formData = {
+                name: document.getElementById('productName').value,
+                category: document.getElementById('category').value,
+                address: document.getElementById('address').value,
+                phone: document.getElementById('phone').value,
+                price: document.getElementById('price').value
+            };
+            fetch('/api/merchant/products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
+                    loadProducts();
+                    document.getElementById('productForm').reset();
+                } else {
+                    alert('添加失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加失败');
+            });
+        }
+
+        // 加载分类下拉框
+        function loadCategories() {
+            fetch('/merchant/categories')
+                .then(res => res.json())
+                .then(data => {
+                    const select = document.getElementById('categoryFilter');
+                    if (!select) return;
+                    select.innerHTML = '<option value="">全部分类</option>';
+                    data.categories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.name;
+                        option.setAttribute('data-id', cat.id);
+                        option.textContent = cat.name;
+                        select.appendChild(option);
+                    });
+                });
+        }
+
+        function getStatusClass(status) {
+            switch(status) {
+                case 'active': case 'completed': return 'bg-success text-white';
+                case 'pending': case 'confirmed': return 'bg-warning text-dark';
+                case 'inactive': case 'cancelled': return 'bg-danger text-white';
+                default: return 'bg-secondary text-white';
+            }
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'pending': return '待确认';
+                case 'confirmed': return '已确认';
+                case 'completed': return '已完成';
+                case 'cancelled': return '已取消';
+                default: return status;
+            }
+        }
+    </script>
+{% endblock %}
+</body>

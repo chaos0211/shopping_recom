@@ -1,0 +1,209 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block title %}首页 - 智能购物推荐系统{% endblock %}
+
+{% block content %}
+<!-- 轮播图 -->
+<div id="carouselExample" class="carousel slide mb-5" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        <div class="carousel-item active">
+            <div class="d-flex justify-content-center align-items-center bg-primary text-white" style="height: 300px;">
+                <div class="text-center">
+                    <h1>智能推荐，精准购物</h1>
+                    <p class="lead">基于大数据分析的个性化推荐系统</p>
+                </div>
+            </div>
+        </div>
+        <div class="carousel-item">
+            <div class="d-flex justify-content-center align-items-center bg-success text-white" style="height: 300px;">
+                <div class="text-center">
+                    <h1>海量商品，一站购齐</h1>
+                    <p class="lead">优质商品，超值价格</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
+        <span class="carousel-control-next-icon"></span>
+    </button>
+</div>
+
+<!-- 搜索栏 -->
+<div class="row mb-5">
+    <div class="col-md-8 mx-auto">
+        <form action="{{ url_for('main.search') }}" method="GET" class="d-flex">
+            <input type="text" class="form-control form-control-lg" name="q" placeholder="搜索商品..." value="{{ request.args.get('q', '') }}">
+            <button class="btn btn-primary btn-lg ms-2" type="submit">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 推荐商品 -->
+{% if session.user_id %}
+<section class="mb-5">
+    <h2 class="mb-4">为您推荐</h2>
+    <div class="row" id="recommendations">
+        <!-- 推荐商品将通过AJAX加载 -->
+    </div>
+</section>
+{% endif %}
+
+<!-- 热门商品 -->
+<section class="mb-5">
+    <h2 class="mb-4">热门商品</h2>
+    <div class="row">
+        {% for product in hot_products %}
+        <div class="col-md-3 mb-4">
+            <div class="card card-hover h-100">
+                <img src="{{ product.image_url or '/static/images/default-product.jpg' }}" class="card-img-top product-image" alt="{{ product.name }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text text-muted">{{ product.description[:50] }}...</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 text-danger">¥{{ "%.2f"|format(product.price) }}</span>
+                        <div class="rating">
+                            {% for i in range(5) %}
+                                <i class="fas fa-star{{ '' if i < product.rating else '-o' }}"></i>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('product_detail', id=product.id) }}" class="btn btn-primary btn-sm">查看详情</a>
+                    {% if session.user_id %}
+                    <button class="btn btn-outline-primary btn-sm" onclick="addToCart({{ product.id }})">
+                        <i class="fas fa-cart-plus"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="toggleFavorite({{ product.id }})">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- 分类推荐 -->
+<section class="mb-5">
+    <h2 class="mb-4">热门分类</h2>
+    <div class="row">
+        {% for category in categories %}
+        <div class="col-md-2 col-6 mb-3">
+            <a href="{{ url_for('products', category=category.id) }}" class="text-decoration-none">
+                <div class="card text-center card-hover">
+                    <div class="card-body">
+                        <i class="fas fa-{{ category.icon }} fa-2x mb-2 text-primary"></i>
+                        <h6 class="card-title">{{ category.name }}</h6>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载个性化推荐
+if ({{ 'true' if session.user_id else 'false' }}) {
+    loadRecommendations();
+}
+
+function loadRecommendations() {
+    axios.get('/api/recommendations')
+        .then(response => {
+            const container = document.getElementById('recommendations');
+            container.innerHTML = '';
+            response.data.forEach(product => {
+                container.innerHTML += createProductCard(product);
+            });
+        })
+        .catch(error => console.error('加载推荐失败:', error));
+}
+
+function createProductCard(product) {
+    return `
+        <div class="col-md-3 mb-4">
+            <div class="card card-hover h-100">
+                <img src="${product.image_url || '/static/images/default-product.jpg'}" class="card-img-top product-image" alt="${product.name}">
+                <div class="card-body">
+                    <h5 class="card-title">${product.name}</h5>
+                    <p class="card-text text-muted">${product.description.substring(0, 50)}...</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 text-danger">¥${product.price.toFixed(2)}</span>
+                        <div class="rating">${'★'.repeat(Math.floor(product.rating))}${'☆'.repeat(5-Math.floor(product.rating))}</div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="/product/${product.id}" class="btn btn-primary btn-sm">查看详情</a>
+                    <button class="btn btn-outline-primary btn-sm" onclick="addToCart(${product.id})">
+                        <i class="fas fa-cart-plus"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="toggleFavorite(${product.id})">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addToCart(productId) {
+    axios.post('/api/cart/add', {product_id: productId, quantity: 1})
+        .then(response => {
+            if (response.data.success) {
+                updateCartCount();
+                showAlert('已添加到购物车', 'success');
+            }
+        })
+        .catch(error => {
+            showAlert('添加失败，请重试', 'error');
+        });
+}
+
+function toggleFavorite(productId) {
+    axios.post('/api/favorites/toggle', {product_id: productId})
+        .then(response => {
+            if (response.data.success) {
+                showAlert(response.data.message, 'success');
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败，请重试', 'error');
+        });
+}
+
+function updateCartCount() {
+    axios.get('/api/cart/count')
+        .then(response => {
+            document.getElementById('cart-count').textContent = response.data.count;
+        });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('main').insertBefore(alertDiv, document.querySelector('main').firstChild);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+// 页面加载时更新购物车数量
+document.addEventListener('DOMContentLoaded', updateCartCount);
+</script>
+{% endblock %}

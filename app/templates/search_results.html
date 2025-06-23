@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}搜索结果{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>搜索结果：{{ query }}</h2>
+    {% if products %}
+        <div class="row mt-4">
+            {% for product in products %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    <img src="{{ product.image_url or '/static/images/default-product.jpg' }}" class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">{{ product.description[:60] }}...</p>
+                        <p class="text-danger">¥{{ "%.2f"|format(product.price) }}</p>
+                        <a href="{{ url_for('main.product_detail', product_id=product.id) }}" class="btn btn-outline-primary btn-sm">查看详情</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>没有找到与 “{{ query }}” 相关的商品。</p>
+    {% endif %}
+</div>
+{% endblock %}

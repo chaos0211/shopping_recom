@@ -1,0 +1,529 @@
+<!-- templates/orders.html -->
+{% extends "base.html" %}
+
+{% block title %}订单管理 - 智能购物推荐系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <!-- 侧边栏 -->
+        <div class="card">
+            <div class="card-header">
+                <h5>订单管理</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('main.my_orders') }}" class="list-group-item list-group-item-action {{ 'active' if not request.args.get('status') }}">
+                    <i class="fas fa-list me-2"></i>全部订单
+                </a>
+                <a href="{{ url_for('main.my_orders', status='pending') }}" class="list-group-item list-group-item-action {{ 'active' if request.args.get('status') == 'pending' }}">
+                    <i class="fas fa-clock me-2"></i>待付款
+                    {% if pending_count > 0 %}
+                    <span class="badge bg-danger float-end">{{ pending_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('main.my_orders', status='paid') }}" class="list-group-item list-group-item-action {{ 'active' if request.args.get('status') == 'paid' }}">
+                    <i class="fas fa-credit-card me-2"></i>待发货
+                    {% if paid_count > 0 %}
+                    <span class="badge bg-warning float-end">{{ paid_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('main.my_orders', status='shipped') }}" class="list-group-item list-group-item-action {{ 'active' if request.args.get('status') == 'shipped' }}">
+                    <i class="fas fa-truck me-2"></i>待收货
+                    {% if shipped_count > 0 %}
+                    <span class="badge bg-info float-end">{{ shipped_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('main.my_orders', status='delivered') }}" class="list-group-item list-group-item-action {{ 'active' if request.args.get('status') == 'delivered' }}">
+                    <i class="fas fa-check me-2"></i>待评价
+                    {% if delivered_count > 0 %}
+                    <span class="badge bg-success float-end">{{ delivered_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('main.my_orders', status='completed') }}" class="list-group-item list-group-item-action {{ 'active' if request.args.get('status') == 'completed' }}">
+                    <i class="fas fa-star me-2"></i>已完成
+                </a>
+                <a href="{{ url_for('main.my_orders', status='cancelled') }}" class="list-group-item list-group-item-action {{ 'active' if request.args.get('status') == 'cancelled' }}">
+                    <i class="fas fa-times me-2"></i>已取消
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <!-- 搜索栏 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" name="search" placeholder="订单号/商品名称"
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="time_range" class="form-select">
+                            <option value="">全部时间</option>
+                            <option value="7" {{ 'selected' if request.args.get('time_range') == '7' }}>最近7天</option>
+                            <option value="30" {{ 'selected' if request.args.get('time_range') == '30' }}>最近30天</option>
+                            <option value="90" {{ 'selected' if request.args.get('time_range') == '90' }}>最近3个月</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="sort" class="form-select">
+                            <option value="desc" {{ 'selected' if request.args.get('sort') == 'desc' }}>按时间倒序</option>
+                            <option value="asc" {{ 'selected' if request.args.get('sort') == 'asc' }}>按时间正序</option>
+                            <option value="amount_desc" {{ 'selected' if request.args.get('sort') == 'amount_desc' }}>按金额倒序</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">搜索</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 订单列表 -->
+        {% if orders.items %}
+            {% for order in orders.items %}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="me-3">订单号: <strong>{{ order.order_number }}</strong></span>
+                        <span class="text-muted">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div>
+                        <span class="badge bg-{{ order.status_color }} me-2">{{ order.status_text }}</span>
+                        {% if order.status == 'pending' %}
+                        <button class="btn btn-danger btn-sm" onclick="cancelOrder('{{ order.id }}')">取消订单</button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- 订单商品 -->
+                    {% for item in order.items %}
+                    <div class="row align-items-center border-bottom py-2">
+                        <div class="col-md-2">
+                            <img src="{{ item.product.image_url or '/static/images/default-product.jpg' }}"
+                                 class="img-fluid rounded" alt="{{ item.product.name }}">
+                        </div>
+                        <div class="col-md-4">
+                            <h6><a href="{{ url_for('product_detail', id=item.product.id) }}" class="text-decoration-none">
+                                {{ item.product.name }}
+                            </a></h6>
+                            {% if item.attributes %}
+                            <small class="text-muted">
+                                {% for key, value in item.attributes.items() %}
+                                {{ key }}: {{ value }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="text-danger">¥{{ "%.2f"|format(item.price) }}</span>
+                        </div>
+                        <div class="col-md-1 text-center">
+                            ×{{ item.quantity }}
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="text-danger">¥{{ "%.2f"|format(item.price * item.quantity) }}</span>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            {% if order.status == 'delivered' and not item.reviewed %}
+                            <button class="btn btn-outline-primary btn-sm"
+                                    onclick="showReviewModal('{{ item.id }}', '{{ item.product.name }}')">
+                                评价
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- 订单操作和金额 -->
+                    <div class="row mt-3">
+                        <div class="col-md-8">
+                            <div class="d-flex gap-2">
+                                {% if order.status == 'pending' %}
+                                <button class="btn btn-primary btn-sm" onclick="payOrder('{{ order.id }}')">
+                                    <i class="fas fa-credit-card"></i> 立即付款
+                                </button>
+                                {% elif order.status == 'shipped' %}
+                                <button class="btn btn-success btn-sm" onclick="confirmReceive('{{ order.id }}')">
+                                    <i class="fas fa-check"></i> 确认收货
+                                </button>
+                                <button class="btn btn-info btn-sm" onclick="showLogistics('{{ order.id }}')">
+                                    <i class="fas fa-truck"></i> 查看物流
+                                </button>
+                                {% elif order.status == 'completed' %}
+                                <button class="btn btn-outline-secondary btn-sm" onclick="reorder('{{ order.id }}')">
+                                    <i class="fas fa-redo"></i> 再次购买
+                                </button>
+                                {% endif %}
+                                <a href="{{ url_for('order_detail', id=order.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i> 查看详情
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-1">
+                                <span class="text-muted">商品总价: </span>
+                                <span>¥{{ "%.2f"|format(order.subtotal) }}</span>
+                            </div>
+                            {% if order.shipping_fee > 0 %}
+                            <div class="mb-1">
+                                <span class="text-muted">运费: </span>
+                                <span>¥{{ "%.2f"|format(order.shipping_fee) }}</span>
+                            </div>
+                            {% endif %}
+                            {% if order.discount > 0 %}
+                            <div class="mb-1">
+                                <span class="text-muted">优惠: </span>
+                                <span class="text-success">-¥{{ "%.2f"|format(order.discount) }}</span>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <span class="text-muted">实付款: </span>
+                                <span class="h5 text-danger">¥{{ "%.2f"|format(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- 分页 -->
+            {% if orders.pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if orders.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('main.my_orders', page=orders.prev_num, **request.args) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for page_num in orders.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != orders.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.my_orders', page=page_num, **request.args) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if orders.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('main.my_orders', page=orders.next_num, **request.args) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">暂无订单</h5>
+                    <p class="text-muted">您还没有任何订单，快去购物吧！</p>
+                    <a href="{{ url_for('main.products') }}" class="btn btn-primary">去购物</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 评价模态框 -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">商品评价</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reviewForm">
+                    <input type="hidden" id="reviewItemId">
+                    <div class="mb-3">
+                        <label class="form-label">商品名称</label>
+                        <p id="reviewProductName" class="form-control-plaintext"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">评分</label>
+                        <div class="rating-input">
+                            {% for i in range(1, 6) %}
+                            <i class="fas fa-star rating-star" data-rating="{{ i }}" onclick="setRating({{ i }})"></i>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" id="rating" name="rating" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reviewContent" class="form-label">评价内容</label>
+                        <textarea class="form-control" id="reviewContent" name="content" rows="4"
+                                  placeholder="分享您的使用感受..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reviewImages" class="form-label">上传图片</label>
+                        <input type="file" class="form-control" id="reviewImages" name="images"
+                               multiple accept="image/*">
+                        <small class="text-muted">最多上传5张图片</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitReview()">提交评价</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 物流信息模态框 -->
+<div class="modal fade" id="logisticsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">物流信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logisticsInfo">
+                    <!-- 物流信息通过AJAX加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 取消订单模态框 -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">取消订单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="cancelForm">
+                    <input type="hidden" id="cancelOrderId">
+                    <div class="mb-3">
+                        <label class="form-label">取消原因</label>
+                        <select class="form-select" name="reason" required>
+                            <option value="">请选择取消原因</option>
+                            <option value="不想要了">不想要了</option>
+                            <option value="信息填写错误">信息填写错误</option>
+                            <option value="商品缺货">商品缺货</option>
+                            <option value="价格变动">价格变动</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cancelRemark" class="form-label">备注说明</label>
+                        <textarea class="form-control" id="cancelRemark" name="remark" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCancel()">确认取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.rating-star {
+    font-size: 24px;
+    color: #ddd;
+    cursor: pointer;
+    margin-right: 5px;
+}
+.rating-star.active {
+    color: #ffc107;
+}
+.rating-star:hover {
+    color: #ffc107;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentRating = 0;
+
+function showReviewModal(itemId, productName) {
+    document.getElementById('reviewItemId').value = itemId;
+    document.getElementById('reviewProductName').textContent = productName;
+    document.getElementById('reviewForm').reset();
+    currentRating = 0;
+    updateRatingStars();
+    new bootstrap.Modal(document.getElementById('reviewModal')).show();
+}
+
+function setRating(rating) {
+    currentRating = rating;
+    document.getElementById('rating').value = rating;
+    updateRatingStars();
+}
+
+function updateRatingStars() {
+    const stars = document.querySelectorAll('.rating-star');
+    stars.forEach((star, index) => {
+        if (index < currentRating) {
+            star.classList.add('active');
+        } else {
+            star.classList.remove('active');
+        }
+    });
+}
+
+function submitReview() {
+    const form = document.getElementById('reviewForm');
+    const formData = new FormData(form);
+    formData.append('item_id', document.getElementById('reviewItemId').value);
+    formData.append('rating', currentRating);
+
+    if (currentRating === 0) {
+        showAlert('请选择评分', 'warning');
+        return;
+    }
+
+    axios.post('/api/reviews/submit', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+    .then(response => {
+        if (response.data.success) {
+            showAlert('评价提交成功', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('提交失败，请重试', 'error');
+    });
+}
+
+function payOrder(orderId) {
+    // 跳转到支付页面
+    window.location.href = `/payment/${orderId}`;
+}
+
+function cancelOrder(orderId) {
+    document.getElementById('cancelOrderId').value = orderId;
+    new bootstrap.Modal(document.getElementById('cancelModal')).show();
+}
+
+function confirmCancel() {
+    const form = document.getElementById('cancelForm');
+    const formData = new FormData(form);
+    const orderId = document.getElementById('cancelOrderId').value;
+
+    axios.post(`/api/orders/${orderId}/cancel`, {
+        reason: formData.get('reason'),
+        remark: formData.get('remark')
+    })
+    .then(response => {
+        if (response.data.success) {
+            showAlert('订单已取消', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
+            location.reload();
+        }
+    })
+    .catch(error => {
+        showAlert('取消失败，请重试', 'error');
+    });
+}
+
+function confirmReceive(orderId) {
+    if (confirm('确认已收到商品吗？')) {
+        axios.post(`/api/orders/${orderId}/confirm`)
+            .then(response => {
+                if (response.data.success) {
+                    showAlert('确认收货成功', 'success');
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                showAlert('操作失败，请重试', 'error');
+            });
+    }
+}
+
+function showLogistics(orderId) {
+    axios.get(`/api/orders/${orderId}/logistics`)
+        .then(response => {
+            const container = document.getElementById('logisticsInfo');
+            container.innerHTML = '';
+
+            if (response.data.logistics && response.data.logistics.length > 0) {
+                container.innerHTML = `
+                    <div class="mb-3">
+                        <strong>快递公司:</strong> ${response.data.express_company}
+                        <br>
+                        <strong>快递单号:</strong> ${response.data.tracking_number}
+                    </div>
+                    <div class="timeline">
+                        ${response.data.logistics.map(item => `
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-primary"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">${item.status}</h6>
+                                    <p class="text-muted mb-1">${item.description}</p>
+                                    <small class="text-muted">${item.time}</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = '<p class="text-muted text-center">暂无物流信息</p>';
+            }
+
+            new bootstrap.Modal(document.getElementById('logisticsModal')).show();
+        })
+        .catch(error => {
+            showAlert('获取物流信息失败', 'error');
+        });
+}
+
+function reorder(orderId) {
+    axios.post(`/api/orders/${orderId}/reorder`)
+        .then(response => {
+            if (response.data.success) {
+                showAlert('商品已加入购物车', 'success');
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败，请重试', 'error');
+        });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('main').insertBefore(alertDiv, document.querySelector('main').firstChild);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

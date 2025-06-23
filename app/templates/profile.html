@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}个人中心 - 智能购物推荐系统{% endblock %}
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0 0 20px 20px;
+    }
+    .avatar-container {
+        position: relative;
+        display: inline-block;
+    }
+    .avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 4px solid rgba(255,255,255,0.3);
+    }
+    .camera-btn {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background: #007bff;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        color: white;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .menu-item {
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+        text-decoration: none;
+        color: #333;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.3s;
+    }
+    .menu-item:hover {
+        background-color: #f8f9fa;
+        color: #007bff;
+    }
+    .menu-item:last-child {
+        border-bottom: none;
+    }
+    .badge-custom {
+        background: linear-gradient(45deg, #ff6b6b, #feca57);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 10px;
+        font-size: 0.8em;
+    }
+</style>
+{% endblock %}
+{% block content %}
+    <!-- 头部用户信息 -->
+    <div class="profile-header p-4">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <div class="avatar-container">
+                        <img src="{{ user.avatar or '/static/images/default-avatar.png' }}"
+                             alt="头像" class="avatar" id="avatarImg">
+                        <button class="camera-btn" data-bs-toggle="modal" data-bs-target="#avatarModal">
+                            <i class="fas fa-camera fa-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="d-flex align-items-center mb-2">
+                        <h3 class="mb-0 me-3" id="username-display">{{ user.username }}</h3>
+                        <span class="badge-custom">{{ user.member_level }}</span>
+                    </div>
+                    <p class="mb-1 opacity-75">积分：{{ user.points }}</p>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        <span id="address-display">{{ user.address }}</span>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <!-- 订单统计 -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="stat-card p-3 text-center">
+                    <div class="text-danger fs-2 fw-bold">{{ order_stats.pending }}</div>
+                    <div class="text-muted small">待付款</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card p-3 text-center">
+                    <div class="text-warning fs-2 fw-bold">{{ order_stats.confirmed }}</div>
+                    <div class="text-muted small">待确认</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card p-3 text-center">
+                    <div class="text-primary fs-2 fw-bold">{{ order_stats.processing }}</div>
+                    <div class="text-muted small">进行中</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card p-3 text-center">
+                    <div class="text-success fs-2 fw-bold">{{ order_stats.completed }}</div>
+                    <div class="text-muted small">已完成</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能菜单 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">常用功能</h5>
+            </div>
+            <div class="card-body p-0">
+                <a href="/orders" class="menu-item">
+                    <i class="fas fa-shopping-bag me-3 text-primary"></i>
+                    <span class="flex-grow-1">我的订单</span>
+                    <span class="badge bg-primary rounded-pill">{{ orders_count or 0 }}</span>
+                    <i class="fas fa-chevron-right ms-2 text-muted"></i>
+                </a>
+                <a href="/favorites" class="menu-item">
+                    <i class="fas fa-heart me-3 text-danger"></i>
+                    <span class="flex-grow-1">我的收藏</span>
+                    <span class="badge bg-danger rounded-pill">{{ favorites_count or 0 }}</span>
+                    <i class="fas fa-chevron-right ms-2 text-muted"></i>
+                </a>
+                <a href="/history" class="menu-item">
+                    <i class="fas fa-clock me-3 text-info"></i>
+                    <span class="flex-grow-1">浏览历史</span>
+                    <span class="badge bg-info rounded-pill">{{ history_count or 0 }}</span>
+                    <i class="fas fa-chevron-right ms-2 text-muted"></i>
+                </a>
+                <a href="/settings" class="menu-item">
+                    <i class="fas fa-cog me-3 text-secondary"></i>
+                    <span class="flex-grow-1">设置</span>
+                    <i class="fas fa-chevron-right ms-2 text-muted"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- 联系方式 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">联系方式</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-phone me-3 text-muted"></i>
+                                <span id="phone-display">{{ user.phone }}</span>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">修改</button>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-envelope me-3 text-muted"></i>
+                                <span id="email-display">{{ user.email }}</span>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">修改</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑资料模态框 -->
+    <div class="modal fade" id="editProfileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑资料</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="profileForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="username" value="{{ user.username }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">手机号</label>
+                            <input type="tel" class="form-control" id="phone" value="{{ user.phone }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">邮箱</label>
+                            <input type="email" class="form-control" id="email" value="{{ user.email }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">地址</label>
+                            <input type="text" class="form-control" id="address" value="{{ user.address }}">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="updateProfile()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% block extra_js %}
+<script>
+    function updateProfile() {
+        const formData = {
+            username: document.getElementById('username').value,
+            phone: document.getElementById('phone').value,
+            email: document.getElementById('email').value,
+            address: document.getElementById('address').value
+        };
+
+        fetch('/api/update_profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('username-display').textContent = formData.username;
+                document.getElementById('phone-display').textContent = formData.phone;
+                document.getElementById('email-display').textContent = formData.email;
+                document.getElementById('address-display').textContent = formData.address;
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
+                modal.hide();
+
+                // ✅ 正确提示更新成功
+                alert("资料更新成功！");
+            } else {
+                // ❌ 只有失败时才提示错误
+                alert('更新失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新失败');
+        });
+    }
+</script>
+{% endblock %}
+{% endblock %}
