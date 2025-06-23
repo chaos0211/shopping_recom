@@ -97,7 +97,7 @@
     <div class="row">
         {% for category in categories %}
         <div class="col-md-2 col-6 mb-3">
-            <a href="{{ url_for('products', category=category.id) }}" class="text-decoration-none">
+            <a href="{{ url_for('main.products', category=category.id) }}" class="text-decoration-none">
                 <div class="card text-center card-hover">
                     <div class="card-body">
                         <i class="fas fa-{{ category.icon }} fa-2x mb-2 text-primary"></i>

@@ -347,7 +347,7 @@
             <tr data-id="${product.id}">
                 <td>${product.id}</td>
                 <td>${product.category || '未分类'}</td>
-                <td title="${product.name}">${product.name.length > 14 ? product.name.substring(0, 14) + '...' : product.name}</td>
+                <td title="${product.name}">${product.name.length > 20 ? product.name.substring(0, 20) + '...' : product.name}</td>
                 <td>${product.description || ''}</td>
                 <td><img src="/${product.image_url}"  style="width: 60px; height: 60px; object-fit: cover;"></td>
                 <td>¥${product.price}</td>
@@ -469,10 +469,12 @@
             document.getElementById('editProductId').value = productId;
             // 调试语句，确认隐藏字段是否成功设置
             // console.log("设置隐藏字段editProductId值为:", document.getElementById('editProductId').value);
-            const name = row.querySelector('td:nth-child(2)').getAttribute('title');
-            const description = row.querySelector('td:nth-child(3)').textContent.trim();
+            // 修正索引：category=3, name=4, description=5, image=img, price=6
+            const category = row.querySelector('td:nth-child(3)').textContent.trim();
+            const name = row.querySelector('td:nth-child(4)').getAttribute('title');
+            const description = row.querySelector('td:nth-child(5)').textContent.trim();
             const imageUrl = row.querySelector('img').getAttribute('src');
-            const price = row.querySelector('td:nth-child(5)').textContent.replace('¥', '').trim();
+            const price = row.querySelector('td:nth-child(6)').textContent.replace('¥', '').trim();
 
             document.getElementById('editProductName').value = name;
             document.getElementById('editProductDesc').value = description;

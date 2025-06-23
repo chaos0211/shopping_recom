@@ -25,25 +25,22 @@ def index():
 @bp.route('/products')
 def products():
     page = request.args.get('page', 1, type=int)
-    category_id = request.args.get('category')
+    per_page = 12
+    category_id = request.args.get('category', type=int)
     search = request.args.get('search', '')
 
     query = Product.query
-
     if category_id:
         query = query.filter(Product.category_id == category_id)
-
     if search:
         query = query.filter(Product.name.contains(search))
 
-    products = query.paginate(
-        page=page, per_page=12, error_out=False
-    )
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     categories = Category.query.all()
 
     return render_template('products.html',
-                           products=products,
+                           products=pagination,
                            categories=categories)
 
 

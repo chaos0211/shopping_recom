@@ -38,5 +38,9 @@ class Product(db.Model):
         return sum(ratings) / len(ratings) if ratings else 0
 
     @property
+    def rating(self):
+        return self.average_rating
+
+    @property
     def review_count(self):
         return self.reviews.count()
