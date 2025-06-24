@@ -109,8 +109,8 @@
                 <button class="btn btn-primary btn-lg flex-fill" onclick="buyNow()">
                     <i class="fas fa-bolt"></i> 立即购买
                 </button>
-                <button class="btn btn-outline-danger" onclick="toggleFavorite('{{ product.id }}')" id="favoriteBtn">
-                    <i class="fas fa-heart"></i>
+                <button class="btn {{ 'btn-danger' if is_favorited else 'btn-outline-danger' }}" onclick="toggleFavorite('{{ product.id }}')" id="favoriteBtn">
+                    <i class="{{ 'fas' if is_favorited else 'far' }} fa-heart"></i>
                 </button>
             </div>
         </div>
@@ -406,7 +406,7 @@ function getSelectedAttributes() {
 }
 
 function toggleFavorite(productId) {
-    axios.post('/api/favorites/toggle', {product_id: productId})
+    axios.post('/toggle_favorite', {product_id: productId})
         .then(response => {
             if (response.data.success) {
                 const btn = document.getElementById('favoriteBtn');
@@ -503,14 +503,14 @@ document.getElementById('questionForm')?.addEventListener('submit', function(e) 
 });
 
 // 页面加载完成后执行
-document.addEventListener('DOMContentLoaded', function() {
-    loadRelatedProducts();
-
-    // 记录浏览历史
-    if ({{ 'true' if session.user_id else 'false' }}) {
-        axios.post('/api/history/add', {product_id: currentProductId});
-    }
-});
+// document.addEventListener('DOMContentLoaded', function() {
+//     loadRelatedProducts();
+//
+//     // 记录浏览历史
+//     if ({{ 'true' if session.user_id else 'false' }}) {
+//         axios.post('/api/history/add', {product_id: currentProductId});
+//     }
+// });
 
 function updateCartCount() {
     axios.get('/cart/count')

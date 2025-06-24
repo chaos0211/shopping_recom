@@ -159,8 +159,11 @@
                     <span class="h5 text-danger">¥{{ "%.2f"|format(product.price) }}</span>
                   </div>
                 </div>
-                <div class="card-footer">
-                  <a href="{{ url_for('main.product_detail', product_id=product.id) }}" class="btn btn-primary btn-sm w-100">查看详情</a>
+                <div class="card-footer d-flex justify-content-between">
+                  <a href="{{ url_for('main.product_detail', product_id=product.id) }}" class="btn btn-primary btn-sm flex-fill me-1">查看详情</a>
+                  <button class="btn btn-outline-success btn-sm" onclick="addToCart({{ product.id }})" title="加入购物车">
+                    <i class="fas fa-shopping-cart"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -214,5 +217,69 @@ function clearFilters() {
 // 商品和分页的渲染已由服务端渲染，无需JS渲染
 // function renderProducts(products) { ... }
 // function renderPagination(pagination) { ... }
+
+function addToCart(productId) {
+    fetch('/cart/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ product_id: productId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // alert('已加入购物车');
+            // location.reload();  // 可选：刷新页面更新购物车图标数量
+            const toast = document.createElement('div');
+            toast.textContent = '已加入购物车';
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.right = '20px';
+            toast.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            toast.style.color = '#fff';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '9999';
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        } else {
+            // alert('加入失败：' + data.message);
+            const toast = document.createElement('div');
+            toast.textContent = '加入失败：' + data.message;
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.right = '20px';
+            toast.style.backgroundColor = '#dc3545';
+            toast.style.color = '#fff';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '9999';
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    })
+    .catch(error => {
+        // alert('发生错误：' + error);
+        const toast = document.createElement('div');
+        toast.textContent = '发生错误：' + error;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.right = '20px';
+        toast.style.backgroundColor = '#dc3545';
+        toast.style.color = '#fff';
+        toast.style.padding = '10px 20px';
+        toast.style.borderRadius = '5px';
+        toast.style.zIndex = '9999';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    });
+}
 </script>
 {% endblock %}

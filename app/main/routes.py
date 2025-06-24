@@ -49,18 +49,29 @@ def product_detail(product_id):
     product = Product.query.get_or_404(product_id)
     reviews = Review.query.filter_by(product_id=product_id).all()
 
+    # 判断是否收藏
+    is_favorited = False
+    if current_user.is_authenticated:
+        is_favorited = Favorite.query.filter_by(user_id=current_user.id, product_id=product_id).first() is not None
+
     # 记录浏览历史
     if current_user.is_authenticated:
-        history = BrowsingHistory(
-            user_id=current_user.id,
-            product_id=product_id
-        )
-        db.session.add(history)
+        history = BrowsingHistory.query.filter_by(user_id=current_user.id, product_id=product_id).first()
+        if history:
+            history.view_count += 1
+            history.timestamp = datetime.utcnow()
+        else:
+            history = BrowsingHistory(
+                user_id=current_user.id,
+                product_id=product_id
+            )
+            db.session.add(history)
         db.session.commit()
 
     return render_template('product_detail.html',
                            product=product,
-                           reviews=reviews)
+                           reviews=reviews,
+                           is_favorited=is_favorited)
 
 @bp.route('/api/products/<int:product_id>/related')
 def related_products(product_id):
@@ -125,6 +136,10 @@ def my_orders():
     canceled_count = Order.query.filter_by(user_id=current_user.id, status='canceled').count()
     delivered_count = Order.query.filter_by(user_id=current_user.id, status='delivered').count()
 
+    # 收藏和浏览历史数量统计
+    favorites_count = Favorite.query.filter_by(user_id=current_user.id).count()
+    history_count = BrowsingHistory.query.filter_by(user_id=current_user.id).count()
+
     return render_template(
         'orders.html',
         orders=orders,
@@ -135,7 +150,9 @@ def my_orders():
         shipped_count=shipped_count,
         delivered_count=delivered_count,
         completed_count=completed_count,
-        canceled_count=canceled_count
+        canceled_count=canceled_count,
+        favorites_count=favorites_count,
+        history_count=history_count
     )
 
 
@@ -161,7 +178,9 @@ def add_review():
 @login_required
 def toggle_favorite():
     data = request.get_json()
-    product_id = data['product_id']
+    product_id = data.get('product_id')
+    if not product_id:
+        return jsonify({'success': False, 'message': '缺少商品ID'}), 400
 
     favorite = Favorite.query.filter_by(
         user_id=current_user.id,
@@ -181,7 +200,12 @@ def toggle_favorite():
 
     db.session.commit()
 
-    return jsonify({'message': f'收藏{action}', 'action': action}), 200
+    return jsonify({
+        'success': True,
+        'message': f'收藏已{ "添加" if action == "added" else "取消" }',
+        'action': action,
+        'product_id': product_id
+    }), 200
 
 
 @bp.route('/recommendations')
@@ -327,17 +351,70 @@ def search():
     results = Product.query.filter(Product.name.contains(query)).all()
     return render_template('search_results.html', products=results, query=query)
 
+
+# 展示用户收藏商品列表
+# @bp.route('/my_favorites')
+# @login_required
+# def my_favorites():
+#     page = request.args.get('page', 1, type=int)
+#     per_page = 10
+#
+#     favorites_query = Favorite.query.filter_by(user_id=current_user.id).join(Product).order_by(Favorite.created_at.desc())
+#     pagination = favorites_query.paginate(page=page, per_page=per_page, error_out=False)
+#     favorites = pagination.items
+#
+#     return render_template('favorites.html',
+#                            favorites=favorites,
+#                            pagination=pagination)
+
 @bp.route('/favorites')
 @login_required
 def favorites():
-    favorites = Favorite.query.filter_by(user_id=current_user.id).all()
-    return render_template('favorites.html', favorites=favorites)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    favorites_query = Favorite.query.filter_by(user_id=current_user.id).join(Product).order_by(
+        Favorite.created_at.desc())
+    pagination = favorites_query.paginate(page=page, per_page=per_page, error_out=False)
+    favorites = pagination.items
+
+    return render_template('favorites.html',
+                           favorites=favorites,
+                           pagination=pagination)
 
 @bp.route('/history')
 @login_required
 def history():
-    histories = BrowsingHistory.query.filter_by(user_id=current_user.id).order_by(BrowsingHistory.timestamp.desc()).all()
-    return render_template('history.html', histories=histories)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    pagination = BrowsingHistory.query.filter_by(user_id=current_user.id).order_by(BrowsingHistory.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    histories = pagination.items
+    return render_template('history.html', histories=histories, pagination=pagination)
+
+
+# 清空当前用户所有浏览历史
+@bp.route('/history/clear_all', methods=['DELETE'])
+@login_required
+def clear_all_history():
+    BrowsingHistory.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'message': '浏览历史已清空'}), 200
+
+# 清除特定商品的浏览记录
+@bp.route('/history/clear/<int:product_id>', methods=['POST'])
+@login_required
+def clear_history_item(product_id):
+    print(current_user,current_user.id)
+    history = BrowsingHistory.query.filter_by(user_id=current_user.id, product_id=product_id).first()
+    # print(product_id)
+    print(history.id, history.user_id)
+    if history:
+        db.session.delete(history)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '该商品浏览历史已删除'}), 200
+    return jsonify({'success': False, 'message': '记录不存在'}), 404
+
+
 
 
 # 用户个人资料页
@@ -351,7 +428,15 @@ def profile():
         'processing': Order.query.filter_by(user_id=current_user.id, status='进行中').count(),
         'completed': Order.query.filter_by(user_id=current_user.id, status='已完成').count()
     }
-    return render_template('profile.html', user=current_user, order_stats=order_stats)
+    orders_count = Order.query.filter_by(user_id=current_user.id).count()
+    favorites_count = Favorite.query.filter_by(user_id=current_user.id).count()
+    history_count = BrowsingHistory.query.filter_by(user_id=current_user.id).count()
+    return render_template('profile.html',
+                           user=current_user,
+                           order_stats=order_stats,
+                           orders_count=orders_count,
+                           favorites_count=favorites_count,
+                           history_count=history_count)
 
 
 # 购物车页面
@@ -377,3 +462,4 @@ def merchant_categories():
     result = [{'id': c.id, 'name': c.name} for c in categories]
 
     return jsonify({'success': True, 'categories': result})
+

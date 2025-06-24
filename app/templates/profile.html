@@ -131,22 +131,22 @@
                 <h5 class="mb-0">常用功能</h5>
             </div>
             <div class="card-body p-0">
-                <a href="/orders" class="menu-item">
+                <a href="/my_orders" class="menu-item">
                     <i class="fas fa-shopping-bag me-3 text-primary"></i>
                     <span class="flex-grow-1">我的订单</span>
-                    <span class="badge bg-primary rounded-pill">{{ orders_count or 0 }}</span>
+                    <span class="badge bg-primary rounded-pill">{{ orders_count }}</span>
                     <i class="fas fa-chevron-right ms-2 text-muted"></i>
                 </a>
                 <a href="/favorites" class="menu-item">
                     <i class="fas fa-heart me-3 text-danger"></i>
                     <span class="flex-grow-1">我的收藏</span>
-                    <span class="badge bg-danger rounded-pill">{{ favorites_count or 0 }}</span>
+                    <span class="badge bg-danger rounded-pill">{{ favorites_count }}</span>
                     <i class="fas fa-chevron-right ms-2 text-muted"></i>
                 </a>
                 <a href="/history" class="menu-item">
                     <i class="fas fa-clock me-3 text-info"></i>
                     <span class="flex-grow-1">浏览历史</span>
-                    <span class="badge bg-info rounded-pill">{{ history_count or 0 }}</span>
+                    <span class="badge bg-info rounded-pill">{{ history_count }}</span>
                     <i class="fas fa-chevron-right ms-2 text-muted"></i>
                 </a>
                 <a href="/settings" class="menu-item">
