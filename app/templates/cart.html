@@ -29,7 +29,7 @@
                                  class="img-fluid rounded" alt="{{ item.product.name }}">
                         </div>
                         <div class="col-md-4">
-                            <h6><a href="{{ url_for('product_detail', id=item.product.id) }}" class="text-decoration-none">
+                            <h6><a href="{{ url_for('main.product_detail', product_id=item.product_id) }}" class="text-decoration-none">
                                 {{ item.product.name }}
                             </a></h6>
                             {% if item.attributes %}
@@ -50,23 +50,19 @@
                         </div>
                         <div class="col-md-2 text-center">
                             <span class="h6 text-danger">¥{{ "%.2f"|format(item.product.price) }}</span>
-                            {% if item.product.original_price and item.product.original_price > item.product.price %}
-                            <br><small class="text-muted text-decoration-line-through">
-                                ¥{{ "%.2f"|format(item.product.original_price) }}
-                            </small>
-                            {% endif %}
+                            {# 原价字段已移除 #}
                         </div>
                         <div class="col-md-2">
                             <div class="input-group input-group-sm">
                                 <button class="btn btn-outline-secondary" type="button"
-                                        onclick="updateQuantity({{ item.id }}, -1)">-</button>
+                                        onclick="updateQuantity({{ item.product_id }}, -1)">-</button>
                                 <input type="number" class="form-control text-center quantity-input"
-                                       value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}"
-                                       onchange="updateQuantity({{ item.id }}, 0, this.value)">
+                                       value="{{ item.quantity }}" min="1" max="999"
+                                       onchange="updateQuantity({{ item.product_id }}, 0, this.value)">
                                 <button class="btn btn-outline-secondary" type="button"
-                                        onclick="updateQuantity({{ item.id }}, 1)">+</button>
+                                        onclick="updateQuantity({{ item.product_id }}, 1)">+</button>
                             </div>
-                            <small class="text-muted">库存{{ item.product.stock }}件</small>
+                            <small class="text-muted">库存999件</small>
                         </div>
                         <div class="col-md-1 text-end">
                             <span class="h6 text-danger item-total">
@@ -138,14 +134,14 @@
                     <label class="form-label">配送至</label>
                     <select class="form-select" id="addressSelect" onchange="updateShipping()">
                         <option value="">请选择收货地址</option>
-                        {% for address in user_addresses %}
-                        <option value="{{ address.id }}">
-                            {{ address.province }} {{ address.city }} {{ address.district }}
-                        </option>
-                        {% endfor %}
+<!--                        {% for address in user_addresses %}-->
+<!--                        <option value="{{ address.id }}">-->
+<!--                            {{ address.province }} {{ address.city }} {{ address.district }}-->
+<!--                        </option>-->
+<!--                        {% endfor %}-->
                     </select>
                     <small class="text-muted">
-                        <a href="{{ url_for('address_management') }}">管理收货地址</a>
+                        <span class="text-muted">北京市 朝阳区 三里屯</span>
                     </small>
                 </div>
 
@@ -251,8 +247,7 @@ function updateQuantity(itemId, delta, newValue = null) {
     quantityInput.value = quantity;
 
     // 发送更新请求
-    axios.post('/api/cart/update', {
-        item_id: itemId,
+    axios.post(`/cart/update/${itemId}`, {
         quantity: quantity
     })
     .then(response => {
@@ -276,7 +271,7 @@ function removeFromCart(itemId) {
 }
 
 function confirmDelete() {
-    axios.post('/api/cart/remove', {item_id: deleteItemId})
+    axios.post('/cart/remove', {item_id: deleteItemId})
         .then(response => {
             if (response.data.success) {
                 document.querySelector(`[data-item-id="${deleteItemId}"]`).remove();
@@ -293,14 +288,14 @@ function confirmDelete() {
 
 function moveToFavorites(itemId) {
     const itemRow = document.querySelector(`[data-item-id="${itemId}"]`);
-    const productId = itemRow.querySelector('a').href.split('/').pop();
+    const productId = itemId; // 直接用扁平结构的 product_id
 
     // 添加到收藏
     axios.post('/api/favorites/add', {product_id: productId})
         .then(response => {
             if (response.data.success) {
                 // 从购物车删除
-                return axios.post('/api/cart/remove', {item_id: itemId});
+                return axios.post('/cart/remove', {item_id: itemId});
             }
         })
         .then(response => {
@@ -420,7 +415,7 @@ function checkout() {
 }
 
 function loadRecommendations() {
-    axios.get('/api/cart/recommendations')
+    axios.get('/cart/recommendations')
         .then(response => {
             const container = document.getElementById('recommendations');
             response.data.forEach(product => {
@@ -471,7 +466,7 @@ function loadRecentViewed() {
 }
 
 function addToCart(productId) {
-    axios.post('/api/cart/add', {product_id: productId, quantity: 1})
+    axios.post('/cart/add', {product_id: productId, quantity: 1})
         .then(response => {
             if (response.data.success) {
                 showAlert('已添加到购物车', 'success');
@@ -499,6 +494,73 @@ function showAlert(message, type) {
 
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
+    // 加载购物车数据并动态渲染
+    axios.get('/cart/data')
+      .then(response => {
+          if (response.data.success) {
+              const cart = response.data.cart;
+              if (cart.length === 0) return;
+
+              const cartBody = document.querySelector('.card-body');
+              const emptyMsg = cartBody.querySelector('.text-center');
+              if (emptyMsg) emptyMsg.remove();  // 删除“购物车是空的”信息
+
+              cart.forEach(item => {
+                  const row = document.createElement('div');
+                  row.className = 'row align-items-center border-bottom py-3 cart-item';
+                  row.setAttribute('data-item-id', item.product_id);
+                  row.innerHTML = `
+                      <div class="col-md-1">
+                          <div class="form-check">
+                              <input class="form-check-input item-checkbox" type="checkbox"
+                                     value="${item.product_id}" onchange="updateTotal()">
+                          </div>
+                      </div>
+                      <div class="col-md-2">
+                          <img src="${item.image_url || '/static/images/default-product.jpg'}"
+                               class="img-fluid rounded" alt="${item.name}">
+                      </div>
+                      <div class="col-md-4">
+                          <h6><a href="/product/${item.product_id}" class="text-decoration-none">
+                              ${item.name}
+                          </a></h6>
+                          <div class="mt-2">
+                              <button class="btn btn-link btn-sm p-0 text-muted" onclick="removeFromCart(${item.product_id})">
+                                  <i class="fas fa-trash"></i> 删除
+                              </button>
+                              <button class="btn btn-link btn-sm p-0 text-muted ms-3" onclick="moveToFavorites(${item.product_id})">
+                                  <i class="fas fa-heart"></i> 移入收藏
+                              </button>
+                          </div>
+                      </div>
+                      <div class="col-md-2 text-center">
+                          <span class="h6 text-danger">¥${item.price.toFixed(2)}</span>
+                          <br><small class="text-muted text-decoration-line-through" style="visibility:hidden">¥0.00</small>
+                      </div>
+                      <div class="col-md-2">
+                          <div class="input-group input-group-sm">
+                              <button class="btn btn-outline-secondary" type="button"
+                                      onclick="updateQuantity(${item.product_id}, -1)">-</button>
+                              <input type="number" class="form-control text-center quantity-input"
+                                     value="${item.quantity}" min="1" max="999"
+                                     onchange="updateQuantity(${item.product_id}, 0, this.value)">
+                              <button class="btn btn-outline-secondary" type="button"
+                                      onclick="updateQuantity(${item.product_id}, 1)">+</button>
+                          </div>
+                          <small class="text-muted">库存999件</small>
+                      </div>
+                      <div class="col-md-1 text-end">
+                          <span class="h6 text-danger item-total">
+                              ¥${(item.price * item.quantity).toFixed(2)}
+                          </span>
+                      </div>
+                  `;
+                  cartBody.insertBefore(row, cartBody.querySelector('.mt-4') || null);
+              });
+
+              updateTotal();
+          }
+      });
     updateTotal();
     loadRecommendations();
     loadRecentViewed();

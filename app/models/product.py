@@ -26,6 +26,8 @@ class Product(db.Model):
     image_url = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    merchant = db.relationship('User', backref='products')
+
     # 关系
     order_items = db.relationship('OrderItem', backref='product', lazy='dynamic')
     reviews = db.relationship('Review', backref='product', lazy='dynamic')

@@ -62,6 +62,24 @@ def product_detail(product_id):
                            product=product,
                            reviews=reviews)
 
+@bp.route('/api/products/<int:product_id>/related')
+def related_products(product_id):
+    product = Product.query.get_or_404(product_id)
+    related = Product.query.filter(
+        Product.category_id == product.category_id,
+        Product.id != product.id
+    ).limit(4).all()
+
+    data = [{
+        'id': p.id,
+        'name': p.name,
+        'price': float(p.price),
+        'image_url': p.image_url,
+        'average_rating': p.average_rating
+    } for p in related]
+
+    return jsonify(data)
+
 
 @bp.route('/add_to_cart', methods=['POST'])
 @login_required

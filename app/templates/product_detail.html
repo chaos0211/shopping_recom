@@ -9,7 +9,7 @@
     <div class="col-md-5">
         <div class="card">
             <div class="position-relative">
-                <img id="mainImage" src="{{ product.image_url or '/static/images/default-product.jpg' }}"
+                <img id="mainImage" src="{{ '/' + product.image_url if product.image_url else '/static/images/default-product.jpg' }}"
                      class="card-img-top" style="height: 400px; object-fit: cover;" alt="{{ product.name }}">
                 {% if product.discount %}
                 <span class="badge bg-danger position-absolute top-0 start-0 m-3">
@@ -23,7 +23,7 @@
                 <div class="row">
                     {% for image in product.images[:4] %}
                     <div class="col-3">
-                        <img src="{{ image.url }}" class="img-thumbnail thumbnail-image"
+                        <img src="/{{ image.url }}" class="img-thumbnail thumbnail-image"
                              onclick="changeMainImage('{{ image.url }}')" style="cursor: pointer;">
                     </div>
                     {% endfor %}
@@ -45,10 +45,10 @@
             <div class="d-flex align-items-center">
                 <div class="rating me-2">
                     {% for i in range(5) %}
-                    <i class="fas fa-star{{ '' if i < product.rating else ' text-muted' }}"></i>
+                    <i class="fas fa-star{{ '' if i < product.average_rating else ' text-muted' }}"></i>
                     {% endfor %}
                 </div>
-                <span class="badge bg-secondary">{{ product.rating }}/5</span>
+                <span class="badge bg-secondary">{{ '%.1f' % product.average_rating }}/5</span>
                 <span class="ms-2 text-muted">({{ product.review_count }}条评价)</span>
                 <span class="ms-3 text-muted">销量: {{ product.sales_count }}</span>
             </div>
@@ -93,10 +93,10 @@
             <label class="form-label">数量:</label>
             <div class="input-group" style="width: 150px;">
                 <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity(-1)">-</button>
-                <input type="number" class="form-control text-center" id="quantity" value="1" min="1" max="{{ product.stock }}">
+                <input type="number" class="form-control text-center" id="quantity" value="1" min="1" max="999">
                 <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity(1)">+</button>
             </div>
-            <small class="text-muted">库存: {{ product.stock }}件</small>
+            <small class="text-muted">库存: 999件</small>
         </div>
 
         <!-- 操作按钮 -->
@@ -109,7 +109,7 @@
                 <button class="btn btn-primary btn-lg flex-fill" onclick="buyNow()">
                     <i class="fas fa-bolt"></i> 立即购买
                 </button>
-                <button class="btn btn-outline-danger" onclick="toggleFavorite({{ product.id }})" id="favoriteBtn">
+                <button class="btn btn-outline-danger" onclick="toggleFavorite('{{ product.id }}')" id="favoriteBtn">
                     <i class="fas fa-heart"></i>
                 </button>
             </div>
@@ -134,7 +134,7 @@
                         </div>
                     </div>
                     <div>
-                        <a href="{{ url_for('merchant_store', id=product.merchant.id) }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ url_for('main.merchant_categories', id=product.merchant.id) }}" class="btn btn-outline-primary btn-sm">
                             进店看看
                         </a>
                     </div>
@@ -194,10 +194,10 @@
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <div class="text-center">
-                            <div class="h1 text-warning">{{ product.rating }}</div>
+                            <div class="h1 text-warning">{{ '%.1f' % product.average_rating }}</div>
                             <div class="rating mb-2">
                                 {% for i in range(5) %}
-                                <i class="fas fa-star{{ '' if i < product.rating else ' text-muted' }}"></i>
+                                <i class="fas fa-star{{ '' if i < product.average_rating else ' text-muted' }}"></i>
                                 {% endfor %}
                             </div>
                             <div class="text-muted">{{ product.review_count }}条评价</div>
@@ -208,9 +208,9 @@
                         <div class="d-flex align-items-center mb-1">
                             <span class="me-2">{{ i }}星</span>
                             <div class="progress flex-fill me-2">
-                                <div class="progress-bar" style="width: {{ (product.rating_distribution[i-1] / product.review_count * 100) if product.review_count > 0 else 0 }}%"></div>
+                                <div class="progress-bar" style="width: 0%"></div>
                             </div>
-                            <span class="text-muted">{{ product.rating_distribution[i-1] or 0 }}</span>
+                            <span class="text-muted">0</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -354,7 +354,7 @@ function addToCart() {
     const quantity = parseInt(document.getElementById('quantity').value);
     const attributes = getSelectedAttributes();
 
-    axios.post('/api/cart/add', {
+    axios.post('/cart/add', {
         product_id: currentProductId,
         quantity: quantity,
         attributes: attributes
@@ -363,6 +363,8 @@ function addToCart() {
         if (response.data.success) {
             updateCartCount();
             showAlert('已添加到购物车', 'success');
+        } else {
+            showAlert(response.data.message || '添加失败', 'error');
         }
     })
     .catch(error => {
@@ -464,12 +466,12 @@ function createProductCard(product) {
     return `
         <div class="col-md-3 mb-4">
             <div class="card card-hover h-100">
-                <img src="${product.image_url || '/static/images/default-product.jpg'}" class="card-img-top product-image" alt="${product.name}">
+                <img src="/${product.image_url || 'static/images/default-product.jpg'}" class="card-img-top product-image" alt="${product.name}">
                 <div class="card-body">
                     <h6 class="card-title">${product.name}</h6>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="text-danger">¥${product.price.toFixed(2)}</span>
-                        <div class="rating small">${'★'.repeat(Math.floor(product.rating))}</div>
+                        <div class="rating small">${'★'.repeat(Math.floor(product.average_rating || 0))}</div>
                     </div>
                 </div>
                 <div class="card-footer">
@@ -511,9 +513,17 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updateCartCount() {
-    axios.get('/api/cart/count')
+    axios.get('/cart/count')
         .then(response => {
-            document.getElementById('cart-count').textContent = response.data.count;
+            if (response.data.count !== undefined) {
+                const cartCountElement = document.getElementById('cartCount');
+                if (cartCountElement) {
+                    cartCountElement.textContent = response.data.count;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('获取购物车数量失败', error);
         });
 }
 
