@@ -106,43 +106,18 @@
                     <span>运费:</span>
                     <span id="shipping">¥0.00</span>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>优惠券:</span>
-                    <span class="text-success" id="coupon">-¥0.00</span>
-                </div>
                 <hr>
                 <div class="d-flex justify-content-between mb-3">
                     <strong>总计:</strong>
                     <strong class="text-danger" id="total">¥0.00</strong>
                 </div>
 
-                <!-- 优惠券选择 -->
-                <div class="mb-3">
-                    <label class="form-label">优惠券</label>
-                    <select class="form-select" id="couponSelect" onchange="applyCoupon()">
-                        <option value="">请选择优惠券</option>
-                        {% for coupon in available_coupons %}
-                        <option value="{{ coupon.id }}" data-discount="{{ coupon.discount }}" data-min-amount="{{ coupon.min_amount }}">
-                            {{ coupon.name }} (满{{ coupon.min_amount }}减{{ coupon.discount }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
                 <!-- 配送地址 -->
                 <div class="mb-3">
                     <label class="form-label">配送至</label>
-                    <select class="form-select" id="addressSelect" onchange="updateShipping()">
-                        <option value="">请选择收货地址</option>
-<!--                        {% for address in user_addresses %}-->
-<!--                        <option value="{{ address.id }}">-->
-<!--                            {{ address.province }} {{ address.city }} {{ address.district }}-->
-<!--                        </option>-->
-<!--                        {% endfor %}-->
-                    </select>
-                    <small class="text-muted">
+                    <div>
                         <span class="text-muted">北京市 朝阳区 三里屯</span>
-                    </small>
+                    </div>
                 </div>
 
                 <div class="d-grid">
@@ -213,21 +188,20 @@ function updateTotal() {
     let subtotal = 0;
     selectedItems.forEach(checkbox => {
         const itemRow = checkbox.closest('.cart-item');
-        const price = parseFloat(itemRow.querySelector('.h6.text-danger').textContent.replace('¥', ''));
-        const quantity = parseInt(itemRow.querySelector('.quantity-input').value);
-        subtotal += price * quantity;
+        const itemTotalEl = itemRow.querySelector('.item-total');
+        if (itemTotalEl) {
+            const itemTotalText = itemTotalEl.textContent.replace('¥', '');
+            subtotal += parseFloat(itemTotalText);
+        }
     });
 
+    const shipping = 0.00;
+    const total = subtotal + shipping;
+
     document.getElementById('subtotal').textContent = `¥${subtotal.toFixed(2)}`;
+    document.getElementById('shipping').textContent = `¥${shipping.toFixed(2)}`;
+    document.getElementById('total').textContent = `¥${total.toFixed(2)}`;
     document.getElementById('selectedCount').textContent = selectedItems.length;
-
-    // 计算运费
-    updateShipping();
-
-    // 应用优惠券
-    applyCoupon();
-
-    // 更新结算按钮状态
     document.getElementById('checkoutBtn').disabled = selectedItems.length === 0;
 }
 
@@ -311,107 +285,81 @@ function moveToFavorites(itemId) {
 }
 
 function updateShipping() {
-    const addressSelect = document.getElementById('addressSelect');
-    const selectedItems = document.querySelectorAll('.item-checkbox:checked');
-
-    if (addressSelect.value && selectedItems.length > 0) {
-        // 根据地址和商品计算运费
-        axios.post('/api/shipping/calculate', {
-            address_id: addressSelect.value,
-            items: Array.from(selectedItems).map(cb => cb.value)
-        })
-        .then(response => {
-            document.getElementById('shipping').textContent = `¥${response.data.shipping_fee.toFixed(2)}`;
-            calculateFinalTotal();
-        });
-    } else {
-        document.getElementById('shipping').textContent = '¥0.00';
-        calculateFinalTotal();
-    }
+    // 订单汇总已在 updateTotal() 统一处理
 }
 
-function applyCoupon() {
-    const couponSelect = document.getElementById('couponSelect');
-    const subtotalText = document.getElementById('subtotal').textContent;
-    const subtotal = parseFloat(subtotalText.replace('¥', ''));
-
-    let discount = 0;
-    if (couponSelect.value) {
-        const selectedOption = couponSelect.selectedOptions[0];
-        const minAmount = parseFloat(selectedOption.dataset.minAmount);
-        const discountAmount = parseFloat(selectedOption.dataset.discount);
-
-        if (subtotal >= minAmount) {
-            discount = discountAmount;
-        } else {
-            showAlert(`此优惠券需满¥${minAmount}使用`, 'warning');
-            couponSelect.value = '';
-        }
-    }
-
-    document.getElementById('coupon').textContent = `-¥${discount.toFixed(2)}`;
-    calculateFinalTotal();
-}
+// 优惠券相关逻辑移除
 
 function calculateFinalTotal() {
-    const subtotalText = document.getElementById('subtotal').textContent;
-    const shippingText = document.getElementById('shipping').textContent;
-    const couponText = document.getElementById('coupon').textContent;
-
-    const subtotal = parseFloat(subtotalText.replace('¥', ''));
-    const shipping = parseFloat(shippingText.replace('¥', ''));
-    const coupon = parseFloat(couponText.replace('-¥', ''));
-
-    const total = subtotal + shipping - coupon;
-    document.getElementById('total').textContent = `¥${total.toFixed(2)}`;
+    // 订单汇总已在 updateTotal() 统一处理
 }
 
 function checkout() {
     const selectedItems = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => cb.value);
-    const addressId = document.getElementById('addressSelect').value;
-    const couponId = document.getElementById('couponSelect').value;
 
     if (selectedItems.length === 0) {
         showAlert('请选择要结算的商品', 'warning');
         return;
     }
 
-    if (!addressId) {
-        showAlert('请选择收货地址', 'warning');
-        return;
-    }
+    const modalHtml = `
+        <div class="modal fade" id="checkoutModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">确认结算</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        确认要结算所选商品吗？
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-danger" id="cancelOrderBtn">取消订单</button>
+                        <button type="button" class="btn btn-primary" id="confirmCheckoutBtn">确认结算</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 
-    // 跳转到结算页面
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/checkout';
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+    modal.show();
 
-    selectedItems.forEach(itemId => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'items[]';
-        input.value = itemId;
-        form.appendChild(input);
-    });
+    document.getElementById('confirmCheckoutBtn').onclick = function () {
+        axios.post('/cart/checkout', {
+            items: selectedItems,
+            status: 'paid'
+        }).then(response => {
+            if (response.data.success) {
+                showAlert('订单创建成功', 'success');
+                window.location.href = '/cart';
+            } else {
+                showAlert(response.data.message || '结算失败', 'error');
+            }
+        }).catch(error => {
+            showAlert('结算请求失败，请稍后重试', 'error');
+        });
+        modal.hide();
+    };
 
-    if (addressId) {
-        const addressInput = document.createElement('input');
-        addressInput.type = 'hidden';
-        addressInput.name = 'address_id';
-        addressInput.value = addressId;
-        form.appendChild(addressInput);
-    }
-
-    if (couponId) {
-        const couponInput = document.createElement('input');
-        couponInput.type = 'hidden';
-        couponInput.name = 'coupon_id';
-        couponInput.value = couponId;
-        form.appendChild(couponInput);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
+    document.getElementById('cancelOrderBtn').onclick = function () {
+        axios.post('/cart/checkout', {
+            items: selectedItems,
+            status: 'cancelled'
+        }).then(response => {
+            if (response.data.success) {
+                showAlert('订单已取消', 'info');
+                window.location.href = '/cart';
+            } else {
+                showAlert(response.data.message || '取消失败', 'error');
+            }
+        }).catch(error => {
+            showAlert('取消请求失败，请稍后重试', 'error');
+        });
+        modal.hide();
+    };
 }
 
 function loadRecommendations() {
@@ -562,6 +510,18 @@ document.addEventListener('DOMContentLoaded', function() {
           }
       });
     updateTotal();
+    // 删除页面加载时对 /cart/total 的请求
+    // axios.get('/cart/total')
+    //   .then(response => {
+    //       if (response.data.success) {
+    //           document.getElementById('subtotal').textContent = `¥${response.data.subtotal.toFixed(2)}`;
+    //           document.getElementById('shipping').textContent = `¥${response.data.shipping.toFixed(2)}`;
+    //           document.getElementById('total').textContent = `¥${response.data.total.toFixed(2)}`;
+    //       }
+    //   })
+    //   .catch(error => {
+    //       console.error('订单汇总信息加载失败：', error);
+    //   });
     loadRecommendations();
     loadRecentViewed();
 });

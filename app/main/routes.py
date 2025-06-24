@@ -97,39 +97,7 @@ def add_to_cart():
     return jsonify({'message': '添加成功'}), 200
 
 
-@bp.route('/checkout', methods=['POST'])
-@login_required
-def checkout():
-    data = request.get_json()
-    items = data.get('items', [])
 
-    total_amount = 0
-    order = Order(user_id=current_user.id, total_amount=0)
-    db.session.add(order)
-    db.session.flush()  # 获取订单ID
-
-    for item in items:
-        product = Product.query.get(item['product_id'])
-        if product and product.stock >= item['quantity']:
-            order_item = OrderItem(
-                order_id=order.id,
-                product_id=product.id,
-                quantity=item['quantity'],
-                price=product.price
-            )
-            total_amount += product.price * item['quantity']
-            product.stock -= item['quantity']
-
-            db.session.add(order_item)
-
-    order.total_amount = total_amount
-    db.session.commit()
-
-    return jsonify({
-        'message': '订单创建成功',
-        'order_id': order.id,
-        'total_amount': float(total_amount)
-    }), 201
 
 
 @bp.route('/my_orders')
