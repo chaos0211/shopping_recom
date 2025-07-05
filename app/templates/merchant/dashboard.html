@@ -111,6 +111,11 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ✅ 分页容器 -->
+            <div id="recentOrdersPaginationWrapper" class="mt-3 text-center">
+                <!-- 分页按钮将在这里插入 -->
+            </div>
         </div>
 
         <!-- 商品管理标签页 -->
@@ -270,17 +275,17 @@
             }
         }
 
-        function loadOverviewData() {
-            fetch('/api/merchant/overview')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateOverviewStats(data.stats);
-                        renderRecentOrders(data.recent_orders);
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-        }
+        function loadOverviewData(page = 1) {
+    fetch(`/merchant/overview?page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateOverviewStats(data.stats);
+                renderRecentOrders(data.recent_orders, data.pagination);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
 
         function updateOverviewStats(stats) {
             document.getElementById('totalRevenue').textContent = `¥${stats.total_revenue.toLocaleString()}`;
@@ -289,11 +294,11 @@
             document.getElementById('activeProducts').textContent = stats.active_products;
         }
 
-        function renderRecentOrders(orders) {
+        function renderRecentOrders(orders, pagination = null) {
             const tbody = document.getElementById('recentOrdersTable');
             tbody.innerHTML = orders.map(order => `
                 <tr>
-                    <td>#${order.id}</td>
+                    <td>${order.id}</td>
                     <td>${order.product}</td>
                     <td>${order.customer}</td>
                     <td>¥${order.amount}</td>
@@ -308,6 +313,38 @@
                     </td>
                 </tr>
             `).join('');
+
+            const paginationWrapper = document.getElementById("recentOrdersPaginationWrapper");
+            paginationWrapper.innerHTML = "";
+
+            if (pagination && pagination.pages >= 1) {
+                const nav = document.createElement("nav");
+                nav.classList.add("mt-3");
+
+                let html = `<ul class="pagination justify-content-center">`;
+
+                if (pagination.page > 1) {
+                    html += `<li class="page-item">
+                                <button class="page-link" onclick="loadOverviewData(${pagination.page - 1})">上一页</button>
+                             </li>`;
+                }
+
+                for (let i = 1; i <= pagination.pages; i++) {
+                    html += `<li class="page-item ${i === pagination.page ? 'active' : ''}">
+                                <button class="page-link" onclick="loadOverviewData(${i})">${i}</button>
+                             </li>`;
+                }
+
+                if (pagination.page < pagination.pages) {
+                    html += `<li class="page-item">
+                                <button class="page-link" onclick="loadOverviewData(${pagination.page + 1})">下一页</button>
+                             </li>`;
+                }
+
+                html += `</ul>`;
+                nav.innerHTML = html;
+                paginationWrapper.appendChild(nav);
+            }
         }
 
         // 支持分页加载商品

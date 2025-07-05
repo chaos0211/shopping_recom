@@ -45,6 +45,9 @@ def create_app(config_class=Config):
     from app.cli import recommend_cli
     app.cli.add_command(recommend_cli.recommend)
 
+    from app.merchant.routes import bp as merchant
+    app.register_blueprint(merchant, url_prefix='/merchant')
+
     # 👇 添加静态图片访问路径
     @app.route('/shopping_crawl/<path:filename>')
     def serve_tmall_images(filename):

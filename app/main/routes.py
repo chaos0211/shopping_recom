@@ -29,11 +29,32 @@ def products():
     category_id = request.args.get('category', type=int)
     search = request.args.get('search', '')
 
-    query = Product.query
+    query = db.session.query(Product)
+
+    from app.models.recommend import Recommendation
+    from sqlalchemy.orm import aliased
+    rec_alias = aliased(Recommendation)
+
+    if current_user.is_authenticated:
+        query = query.outerjoin(
+            rec_alias,
+            (Product.id == rec_alias.product_id) & (rec_alias.user_id == current_user.id)
+        )
+
     if category_id:
         query = query.filter(Product.category_id == category_id)
     if search:
         query = query.filter(Product.name.contains(search))
+
+    from sqlalchemy import func
+
+    if current_user.is_authenticated:
+        query = query.order_by(
+            func.ifnull(rec_alias.score, -1).desc(),
+            Product.id.desc()
+        )
+    else:
+        query = query.order_by(Product.id.desc())
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
@@ -429,7 +450,7 @@ def profile():
         'pending': Order.query.filter_by(user_id=current_user.id, status='待付款').count(),
         'confirmed': Order.query.filter_by(user_id=current_user.id, status='待确认').count(),
         'processing': Order.query.filter_by(user_id=current_user.id, status='进行中').count(),
-        'completed': Order.query.filter_by(user_id=current_user.id, status='已完成').count()
+        'paid': Order.query.filter_by(user_id=current_user.id, status='已完成').count()
     }
     orders_count = Order.query.filter_by(user_id=current_user.id).count()
     favorites_count = Favorite.query.filter_by(user_id=current_user.id).count()
