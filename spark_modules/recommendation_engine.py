@@ -152,6 +152,15 @@ class RecommendationEngine:
 
         return popular_items.collect()
 
+    def generate_recommendations(self, user_id, interactions_df, num_recommendations=10):
+        """
+        统一入口：根据用户历史行为生成推荐
+        """
+        training_data = self.prepare_training_data(interactions_df)
+        self.train_als_model(training_data)
+        recommendations = self.get_user_recommendations(user_id, num_recommendations=num_recommendations)
+        return recommendations
+
     def close(self):
         """关闭Spark会话"""
         self.spark.stop()

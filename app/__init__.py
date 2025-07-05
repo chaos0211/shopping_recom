@@ -36,6 +36,15 @@ def create_app(config_class=Config):
     from app.cart.routes import bp as cart_bp
     app.register_blueprint(cart_bp, url_prefix='/cart')
 
+    from app.reviews.routes import bp as reviews_bp
+    app.register_blueprint(reviews_bp, url_prefix='/reviews')
+
+    from app.recommend.routes import bp as recommend
+    app.register_blueprint(recommend, url_prefix='/recommend')
+
+    from app.cli import recommend_cli
+    app.cli.add_command(recommend_cli.recommend)
+
     # 👇 添加静态图片访问路径
     @app.route('/shopping_crawl/<path:filename>')
     def serve_tmall_images(filename):
@@ -52,4 +61,4 @@ def create_app(config_class=Config):
     return app
 
 
-from app.models import user, product, order, review, cart
+from app.models import user, product, order, review, cart, recommend

@@ -208,22 +208,13 @@
                         <div class="d-flex align-items-center mb-1">
                             <span class="me-2">{{ i }}星</span>
                             <div class="progress flex-fill me-2">
-                                <div class="progress-bar" style="width: {{ (product.rating_distribution[i-1] / product.review_count * 100) if product.review_count > 0 else 0 }}%"></div>
+                                <div class="progress-bar" style="width: 0%"></div>
                             </div>
-                            <span class="text-muted">{{ product.rating_distribution[i-1] if product.rating_distribution else 0 }}</span>
+                            <span class="text-muted">0</span>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
-
-                <!-- 写评价按钮 -->
-                {% if session.user_id and user_can_review %}
-                <div class="mb-4">
-                    <button class="btn btn-primary" onclick="showReviewModal()">
-                        <i class="fas fa-edit"></i> 写评价
-                    </button>
-                </div>
-                {% endif %}
 
                 <!-- 评价筛选 -->
                 <div class="mb-3">
@@ -237,7 +228,7 @@
                 <!-- 评价列表 -->
                 <div id="reviewsList">
                     {% for review in product.reviews %}
-                    <div class="border-bottom pb-3 mb-3 review-item" data-rating="{{ review.rating }}" data-has-images="{{ 'true' if review.images else 'false' }}">
+                    <div class="border-bottom pb-3 mb-3 review-item" data-rating="{{ review.rating }}">
                         <div class="d-flex align-items-start">
                             <img src="{{ review.user.avatar_url or '/static/images/default-avatar.jpg' }}"
                                  class="rounded-circle me-3" width="40" height="40">
@@ -247,14 +238,9 @@
                                         <strong>{{ review.user.username[:3] }}***</strong>
                                         <div class="rating">
                                             {% for i in range(5) %}
-                                            <i class="fas fa-star{{ ' text-warning' if i < review.rating else ' text-muted' }}"></i>
+                                            <i class="fas fa-star{{ '' if i < review.rating else ' text-muted' }}"></i>
                                             {% endfor %}
                                         </div>
-                                        {% if review.purchased_attributes %}
-                                        <div class="small text-muted">
-                                            已购买: {{ review.purchased_attributes }}
-                                        </div>
-                                        {% endif %}
                                     </div>
                                     <small class="text-muted">{{ review.created_at.strftime('%Y-%m-%d') }}</small>
                                 </div>
@@ -263,28 +249,14 @@
                                 <div class="mb-2">
                                     {% for image in review.images %}
                                     <img src="{{ image }}" class="img-thumbnail me-2" width="80" height="80"
-                                         onclick="showImageModal('{{ image }}')" style="cursor: pointer;">
+                                         onclick="showImageModal('{{ image }}')">
                                     {% endfor %}
                                 </div>
                                 {% endif %}
-
-                                <!-- 评价点赞和踩 -->
-                                <div class="d-flex align-items-center mb-2">
-                                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="likeReview({{ review.id }})">
-                                        <i class="far fa-thumbs-up"></i>
-                                        <span id="like-count-{{ review.id }}">{{ review.like_count or 0 }}</span>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="dislikeReview({{ review.id }})">
-                                        <i class="far fa-thumbs-down"></i>
-                                        <span id="dislike-count-{{ review.id }}">{{ review.dislike_count or 0 }}</span>
-                                    </button>
-                                </div>
-
                                 {% if review.reply %}
                                 <div class="bg-light p-2 rounded">
                                     <small class="text-muted">商家回复:</small>
                                     <p class="mb-0">{{ review.reply }}</p>
-                                    <small class="text-muted">{{ review.reply_at.strftime('%Y-%m-%d') }}</small>
                                 </div>
                                 {% endif %}
                             </div>
@@ -294,11 +266,9 @@
                 </div>
 
                 <!-- 加载更多 -->
-                {% if review_count > reviews|length %}
                 <div class="text-center">
                     <button class="btn btn-outline-primary" onclick="loadMoreReviews()">加载更多评价</button>
                 </div>
-                {% endif %}
             </div>
         </div>
 
@@ -350,66 +320,6 @@
     </div>
 </div>
 
-{% if current_user.is_authenticated %}
-<!-- 写评价模态框 -->
-<div class="modal fade" id="reviewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">写评价</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="reviewForm" enctype="multipart/form-data">
-                    <!-- 星级评分 -->
-                    <div class="mb-3">
-                        <label class="form-label">商品评分 <span class="text-danger">*</span></label>
-                        <div class="rating-input">
-                            {% for i in range(1, 6) %}
-                            <i class="fas fa-star star-input" data-rating="{{ i }}" onclick="setRating({{ i }})"></i>
-                            {% endfor %}
-                            <span class="ms-2" id="ratingText">请选择评分</span>
-                        </div>
-                        <input type="hidden" id="ratingValue" name="rating" required>
-                    </div>
-
-                    <!-- 评价内容 -->
-                    <div class="mb-3">
-                        <label class="form-label">评价内容 <span class="text-danger">*</span></label>
-                        <textarea class="form-control" name="content" rows="5"
-                                  placeholder="分享您的使用体验，帮助其他买家更好地了解商品..."
-                                  required minlength="10" maxlength="500"></textarea>
-                        <div class="form-text">至少10个字符，最多500个字符</div>
-                    </div>
-
-                    <!-- 上传图片 -->
-                    <div class="mb-3">
-                        <label class="form-label">上传图片（可选）</label>
-                        <input type="file" class="form-control" name="images" multiple accept="image/*" id="reviewImages">
-                        <div class="form-text">最多上传5张图片，支持jpg、png格式</div>
-                        <div id="imagePreview" class="mt-2"></div>
-                    </div>
-
-                    <!-- 匿名评价选项 -->
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="anonymous" id="anonymousReview">
-                            <label class="form-check-label" for="anonymousReview">
-                                匿名评价
-                            </label>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="submitReview()">发布评价</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
 <!-- 图片查看模态框 -->
 <div class="modal fade" id="imageModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -425,80 +335,9 @@
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-.rating .fa-star {
-    color: #ffc107;
-}
-
-.rating .fa-star.text-muted {
-    color: #dee2e6 !important;
-}
-
-.rating-input .star-input {
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #dee2e6;
-    transition: color 0.2s;
-}
-
-.rating-input .star-input:hover,
-.rating-input .star-input.active {
-    color: #ffc107;
-}
-
-.rating-input .star-input:hover ~ .star-input {
-    color: #dee2e6;
-}
-
-.image-preview {
-    position: relative;
-    display: inline-block;
-    margin: 5px;
-}
-
-.image-preview img {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-}
-
-.image-preview .remove-image {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.review-item:hover {
-    background-color: #f8f9fa;
-}
-
-.product-image {
-    height: 200px;
-    object-fit: cover;
-}
-
-.card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    transition: all 0.3s;
-}
-</style>
-{% endblock %}
-
 {% block extra_js %}
 <script>
 let currentProductId = {{ product.id }};
-let currentRating = 0;
-let reviewImages = [];
 
 function changeMainImage(imageUrl) {
     document.getElementById('mainImage').src = imageUrl;
@@ -581,25 +420,21 @@ function toggleFavorite(productId) {
         });
 }
 
-function filterReviews(filter) {
+function filterReviews(rating) {
     const reviews = document.querySelectorAll('.review-item');
-    const buttons = document.querySelectorAll('#reviews .btn-outline-primary');
+    const buttons = document.querySelectorAll('.btn-outline-primary');
 
     buttons.forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
 
     reviews.forEach(review => {
-        let shouldShow = false;
-
-        if (filter === 'all') {
-            shouldShow = true;
-        } else if (filter === 'images') {
-            shouldShow = review.dataset.hasImages === 'true';
-        } else if (typeof filter === 'number') {
-            shouldShow = parseInt(review.dataset.rating) === filter;
+        if (rating === 'all' ||
+            (rating === 'images' && review.querySelector('img')) ||
+            (typeof rating === 'number' && parseInt(review.dataset.rating) === rating)) {
+            review.style.display = 'block';
+        } else {
+            review.style.display = 'none';
         }
-
-        review.style.display = shouldShow ? 'block' : 'none';
     });
 }
 
@@ -609,201 +444,10 @@ function showImageModal(imageUrl) {
 }
 
 function loadMoreReviews() {
-    const currentCount = document.querySelectorAll('.review-item').length;
-
-    axios.get(`/api/products/${currentProductId}/reviews?offset=${currentCount}`)
+    // 实现加载更多评价
+    axios.get(`/api/products/${currentProductId}/reviews?page=2`)
         .then(response => {
-            if (response.data.reviews && response.data.reviews.length > 0) {
-                const reviewsList = document.getElementById('reviewsList');
-                response.data.reviews.forEach(review => {
-                    reviewsList.innerHTML += createReviewHTML(review);
-                });
-            }
-        })
-        .catch(error => {
-            showAlert('加载失败，请重试', 'error');
-        });
-}
-
-// 显示评价模态框
-function showReviewModal() {
-    const modal = new bootstrap.Modal(document.getElementById('reviewModal'));
-    modal.show();
-    resetReviewForm();
-}
-
-// 设置星级评分
-function setRating(rating) {
-    currentRating = rating;
-    document.getElementById('ratingValue').value = rating;
-
-    const stars = document.querySelectorAll('.star-input');
-    const ratingTexts = ['', '很差', '差', '一般', '好', '很好'];
-
-    stars.forEach((star, index) => {
-        if (index < rating) {
-            star.classList.add('active');
-        } else {
-            star.classList.remove('active');
-        }
-    });
-
-    document.getElementById('ratingText').textContent = ratingTexts[rating];
-}
-
-// 处理图片上传预览
-document.getElementById('reviewImages')?.addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    const preview = document.getElementById('imagePreview');
-
-    if (files.length > 5) {
-        showAlert('最多只能上传5张图片', 'warning');
-        this.value = '';
-        return;
-    }
-
-    preview.innerHTML = '';
-    reviewImages = [];
-
-    files.forEach((file, index) => {
-        if (file.size > 5 * 1024 * 1024) {
-            showAlert('图片大小不能超过5MB', 'warning');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const div = document.createElement('div');
-            div.className = 'image-preview';
-            div.innerHTML = `
-                <img src="${e.target.result}" class="img-thumbnail">
-                <button type="button" class="remove-image" onclick="removeImage(${index})">×</button>
-            `;
-            preview.appendChild(div);
-        };
-        reader.readAsDataURL(file);
-        reviewImages.push(file);
-    });
-});
-
-// 移除图片
-function removeImage(index) {
-    reviewImages.splice(index, 1);
-    updateImagePreview();
-}
-
-function updateImagePreview() {
-    const preview = document.getElementById('imagePreview');
-    preview.innerHTML = '';
-
-    reviewImages.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const div = document.createElement('div');
-            div.className = 'image-preview';
-            div.innerHTML = `
-                <img src="${e.target.result}" class="img-thumbnail">
-                <button type="button" class="remove-image" onclick="removeImage(${index})">×</button>
-            `;
-            preview.appendChild(div);
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-// 提交评价
-function submitReview() {
-    const form = document.getElementById('reviewForm');
-    const formData = new FormData(form);
-
-    if (!currentRating) {
-        showAlert('请选择评分', 'warning');
-        return;
-    }
-
-    const content = formData.get('content');
-    if (!content || content.trim().length < 10) {
-        showAlert('评价内容至少需要10个字符', 'warning');
-        return;
-    }
-
-    // 添加图片文件
-    reviewImages.forEach((file, index) => {
-        formData.append(`image_${index}`, file);
-    });
-
-    formData.append('product_id', currentProductId);
-    formData.append('rating', currentRating);
-
-    const submitBtn = event.target;
-    submitBtn.disabled = true;
-    submitBtn.textContent = '提交中...';
-
-    axios.post('/reviews/add', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    })
-    .then(response => {
-        if (response.data.success) {
-            showAlert('评价提交成功！', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        } else {
-            showAlert(response.data.message || '提交失败', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('评价提交失败:', error);
-        showAlert('提交失败，请重试', 'error');
-    })
-    .finally(() => {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '发布评价';
-    });
-}
-
-// 重置评价表单
-function resetReviewForm() {
-    currentRating = 0;
-    reviewImages = [];
-    document.getElementById('reviewForm').reset();
-    document.getElementById('ratingValue').value = '';
-    document.getElementById('ratingText').textContent = '请选择评分';
-    document.getElementById('imagePreview').innerHTML = '';
-
-    document.querySelectorAll('.star-input').forEach(star => {
-        star.classList.remove('active');
-    });
-}
-
-// 点赞评价
-function likeReview(reviewId) {
-    axios.post(`/reviews/${reviewId}/like`)
-        .then(response => {
-            if (response.data.success) {
-                document.getElementById(`like-count-${reviewId}`).textContent = response.data.like_count;
-                showAlert('已点赞', 'success');
-            }
-        })
-        .catch(error => {
-            showAlert('操作失败', 'error');
-        });
-}
-
-// 踩评价
-function dislikeReview(reviewId) {
-    axios.post(`/reviews/${reviewId}/dislike`)
-        .then(response => {
-            if (response.data.success) {
-                document.getElementById(`dislike-count-${reviewId}`).textContent = response.data.dislike_count;
-                showAlert('已踩', 'success');
-            }
-        })
-        .catch(error => {
-            showAlert('操作失败', 'error');
+            // 添加更多评价到列表
         });
 }
 
@@ -838,53 +482,6 @@ function createProductCard(product) {
     `;
 }
 
-function createReviewHTML(review) {
-    const images = review.images ? review.images.map(img =>
-        `<img src="${img}" class="img-thumbnail me-2" width="80" height="80" onclick="showImageModal('${img}')" style="cursor: pointer;">`
-    ).join('') : '';
-
-    const reply = review.reply ? `
-        <div class="bg-light p-2 rounded">
-            <small class="text-muted">商家回复:</small>
-            <p class="mb-0">${review.reply}</p>
-            <small class="text-muted">${review.reply_at}</small>
-        </div>
-    ` : '';
-
-    return `
-        <div class="border-bottom pb-3 mb-3 review-item" data-rating="${review.rating}" data-has-images="${review.images ? 'true' : 'false'}">
-            <div class="d-flex align-items-start">
-                <img src="${review.user.avatar_url || '/static/images/default-avatar.jpg'}" class="rounded-circle me-3" width="40" height="40">
-                <div class="flex-fill">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <strong>${review.user.username.substring(0,3)}***</strong>
-                            <div class="rating">
-                                ${'<i class="fas fa-star text-warning"></i>'.repeat(review.rating)}
-                                ${'<i class="fas fa-star text-muted"></i>'.repeat(5 - review.rating)}
-                            </div>
-                        </div>
-                        <small class="text-muted">${review.created_at}</small>
-                    </div>
-                    <p class="mb-2">${review.content}</p>
-                    ${images ? `<div class="mb-2">${images}</div>` : ''}
-                    <div class="d-flex align-items-center mb-2">
-                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="likeReview(${review.id})">
-                            <i class="far fa-thumbs-up"></i>
-                            <span id="like-count-${review.id}">${review.like_count || 0}</span>
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="dislikeReview(${review.id})">
-                            <i class="far fa-thumbs-down"></i>
-                            <span id="dislike-count-${review.id}">${review.dislike_count || 0}</span>
-                        </button>
-                    </div>
-                    ${reply}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
 // 提问表单提交
 document.getElementById('questionForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -905,6 +502,16 @@ document.getElementById('questionForm')?.addEventListener('submit', function(e) 
     });
 });
 
+// 页面加载完成后执行
+// document.addEventListener('DOMContentLoaded', function() {
+//     loadRelatedProducts();
+//
+//     // 记录浏览历史
+//     if ({{ 'true' if session.user_id else 'false' }}) {
+//         axios.post('/api/history/add', {product_id: currentProductId});
+//     }
+// });
+
 function updateCartCount() {
     axios.get('/cart/count')
         .then(response => {
@@ -922,27 +529,16 @@ function updateCartCount() {
 
 function showAlert(message, type) {
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
     alertDiv.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    document.body.appendChild(alertDiv);
+    document.querySelector('main').insertBefore(alertDiv, document.querySelector('main').firstChild);
 
     setTimeout(() => {
         alertDiv.remove();
     }, 3000);
 }
-
-// 页面加载完成后执行
-document.addEventListener('DOMContentLoaded', function() {
-    loadRelatedProducts();
-
-    // 记录浏览历史
-    if ({{ 'true' if session.user_id else 'false' }}) {
-        axios.post('/api/history/add', {product_id: currentProductId});
-    }
-});
 </script>
 {% endblock %}

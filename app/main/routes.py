@@ -48,6 +48,8 @@ def products():
 def product_detail(product_id):
     product = Product.query.get_or_404(product_id)
     reviews = Review.query.filter_by(product_id=product_id).all()
+    review_count = Review.query.filter_by(product_id=product_id).count()
+
 
     # 判断是否收藏
     is_favorited = False
@@ -71,6 +73,7 @@ def product_detail(product_id):
     return render_template('product_detail.html',
                            product=product,
                            reviews=reviews,
+                           review_count=review_count,
                            is_favorited=is_favorited)
 
 @bp.route('/api/products/<int:product_id>/related')
@@ -208,15 +211,15 @@ def toggle_favorite():
     }), 200
 
 
-@bp.route('/recommendations')
-@login_required
-def recommendations():
-    # 这里会调用推荐引擎
-    # 暂时返回热门商品
-    recommended_products = Product.query.limit(10).all()
-
-    return render_template('recommendations.html',
-                           products=recommended_products)
+# @bp.route('/recommendations')
+# @login_required
+# def recommendations():
+#     # 这里会调用推荐引擎
+#     # 暂时返回热门商品
+#     recommended_products = Product.query.limit(10).all()
+#
+#     return render_template('recommendations.html',
+#                            products=recommended_products)
 
 
 # 商家功能
