@@ -565,9 +565,8 @@
                 alert("修改失败");
             });
         }
-
         function loadAnalytics() {
-            fetch('/api/merchant/analytics')
+            fetch('/merchant/analytics')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -741,5 +740,7 @@
             </div>
         </div>
     </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!--<script src="/templates/js/chart.min.js"></script>-->
 {% endblock %}
 </body>

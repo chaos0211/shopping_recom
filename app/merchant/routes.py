@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.order import Order, OrderItem
 from app.models.product import Product
+from sqlalchemy import func,select
+
 
 bp = Blueprint('merchant', __name__)
 
@@ -76,5 +78,43 @@ def merchant_overview():
             "total": total_recent_orders,
             "pages": total_pages,
             "has_more": page < total_pages
+        }
+    })
+
+@bp.route('/analytics')
+def merchant_analytics():
+    user_id = current_user.id
+
+    # 查找该商户的商品
+    product_ids = select(Product.id).where(Product.merchant_id == user_id)
+
+    order_data = db.session.query(
+        func.date(Order.created_at).label('date'),
+        func.sum(OrderItem.price).label('daily_revenue'),
+        func.count(func.distinct(Order.id)).label('daily_orders')
+    ).join(Order, OrderItem.order_id == Order.id) \
+        .filter(OrderItem.product_id.in_(product_ids)) \
+        .filter(Order.status == 'paid') \
+        .group_by(func.date(Order.created_at)) \
+        .order_by(func.date(Order.created_at)).all()
+
+    labels = []
+    revenue_data = []
+    order_data_list = []
+
+    for row in order_data:
+        labels.append(row.date.strftime('%Y-%m-%d'))
+        revenue_data.append(float(row.daily_revenue or 0))
+        order_data_list.append(row.daily_orders)
+
+    return jsonify({
+        'success': True,
+        'revenue_trend': {
+            'labels': labels,
+            'data': revenue_data
+        },
+        'orders_trend': {
+            'labels': labels,
+            'data': order_data_list
         }
     })
