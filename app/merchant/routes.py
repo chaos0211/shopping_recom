@@ -4,6 +4,8 @@ from app import db
 from app.models.order import Order, OrderItem
 from app.models.product import Product
 from sqlalchemy import func,select
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+import pandas as pd
 
 
 bp = Blueprint('merchant', __name__)
@@ -86,26 +88,50 @@ def merchant_analytics():
     user_id = current_user.id
 
     # 查找该商户的商品
-    product_ids = select(Product.id).where(Product.merchant_id == user_id)
+    product_ids_subq = select(Product.id).where(Product.merchant_id == user_id)
 
     order_data = db.session.query(
         func.date(Order.created_at).label('date'),
         func.sum(OrderItem.price).label('daily_revenue'),
         func.count(func.distinct(Order.id)).label('daily_orders')
     ).join(Order, OrderItem.order_id == Order.id) \
-        .filter(OrderItem.product_id.in_(product_ids)) \
+        .filter(OrderItem.product_id.in_(product_ids_subq)) \
         .filter(Order.status == 'paid') \
         .group_by(func.date(Order.created_at)) \
         .order_by(func.date(Order.created_at)).all()
 
-    labels = []
-    revenue_data = []
-    order_data_list = []
+    # 构造 pandas DataFrame
+    df = pd.DataFrame(order_data, columns=['date', 'daily_revenue', 'daily_orders'])
 
-    for row in order_data:
-        labels.append(row.date.strftime('%Y-%m-%d'))
-        revenue_data.append(float(row.daily_revenue or 0))
-        order_data_list.append(row.daily_orders)
+    if df.empty:
+        return jsonify({
+            'success': True,
+            'revenue_trend': {'labels': [], 'data': []},
+            'orders_trend': {'labels': [], 'data': []}
+        })
+
+    df.set_index('date', inplace=True)
+    df = df.asfreq('D', fill_value=0)
+    # 确保数据类型正确
+    df['daily_revenue'] = pd.to_numeric(df['daily_revenue'], errors='coerce').fillna(0.0)
+    df['daily_orders'] = pd.to_numeric(df['daily_orders'], errors='coerce').fillna(0).astype(int)
+
+    # 预测未来7天
+    forecast_days = 7
+
+    revenue_model = ExponentialSmoothing(df['daily_revenue'], trend='add', seasonal=None).fit()
+    revenue_forecast = revenue_model.forecast(forecast_days)
+
+    orders_model = ExponentialSmoothing(df['daily_orders'], trend='add', seasonal=None).fit()
+    orders_forecast = orders_model.forecast(forecast_days)
+
+    # 拼接历史 + 预测数据
+    full_revenue = pd.concat([df['daily_revenue'], revenue_forecast])
+    full_orders = pd.concat([df['daily_orders'], orders_forecast])
+
+    labels = [d.strftime('%Y-%m-%d') for d in full_revenue.index]
+    revenue_data = [round(float(x), 2) for x in full_revenue]
+    order_data_list = [int(x) for x in full_orders]
 
     return jsonify({
         'success': True,
