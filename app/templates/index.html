@@ -119,7 +119,7 @@ if ({{ 'true' if session.user_id else 'false' }}) {
 }
 
 function loadRecommendations() {
-    axios.get('/api/recommendations')
+    axios.get('/recommend/recommendations')
         .then(response => {
             const container = document.getElementById('recommendations');
             container.innerHTML = '';
@@ -203,17 +203,17 @@ function showAlert(message, type) {
     }, 3000);
 }
 
-function loadRecommendations() {
-    axios.get('/recommend/recommendations')
-        .then(response => {
-            const container = document.getElementById('recommendations');
-            container.innerHTML = '';
-            response.data.forEach(product => {
-                container.innerHTML += createProductCard(product);
-            });
-        })
-        .catch(error => console.error('加载推荐失败:', error));
-}
+// function loadRecommendations() {
+//     axios.get('/recommend/recommendations')
+//         .then(response => {
+//             const container = document.getElementById('recommendations');
+//             container.innerHTML = '';
+//             response.data.forEach(product => {
+//                 container.innerHTML += createProductCard(product);
+//             });
+//         })
+//         .catch(error => console.error('加载推荐失败:', error));
+// }
 
 function createProductCard(product) {
     return `

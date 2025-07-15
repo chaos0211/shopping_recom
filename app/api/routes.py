@@ -10,29 +10,29 @@ import json
 bp = Blueprint('api', __name__)
 
 
-@bp.route('/recommendations/<int:user_id>')
-def get_recommendations(user_id):
-    """获取用户推荐"""
-    try:
-        # 初始化推荐引擎
-        rec_engine = RecommendationEngine()
-
-        # 这里需要实际的数据预处理和模型训练
-        # 暂时返回示例数据
-        recommendations = [
-            {'product_id': 1, 'score': 0.95, 'rank': 1},
-            {'product_id': 2, 'score': 0.87, 'rank': 2},
-            {'product_id': 3, 'score': 0.82, 'rank': 3}
-        ]
-
-        rec_engine.close()
-
-        return jsonify({
-            'user_id': user_id,
-            'recommendations': recommendations
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# @bp.route('/recommendations/<int:user_id>')
+# def get_recommendations(user_id):
+#     """获取用户推荐"""
+#     try:
+#         # 初始化推荐引擎
+#         rec_engine = RecommendationEngine()
+#
+#         # 这里需要实际的数据预处理和模型训练
+#         # 暂时返回示例数据
+#         recommendations = [
+#             {'product_id': 1, 'score': 0.95, 'rank': 1},
+#             {'product_id': 2, 'score': 0.87, 'rank': 2},
+#             {'product_id': 3, 'score': 0.82, 'rank': 3}
+#         ]
+#
+#         rec_engine.close()
+#
+#         return jsonify({
+#             'user_id': user_id,
+#             'recommendations': recommendations
+#         })
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
 
 
 @bp.route('/sales_prediction')

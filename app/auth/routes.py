@@ -94,5 +94,6 @@ def forgot_password():
 @login_required
 def logout():
     logout_user()
+    session.clear()  # 清除所有 session 数据
     flash('您已成功退出登录。')
-    return redirect(url_for('main.index'))
+    return redirect(url_for('auth.login'))  # 修改为跳转到登录页

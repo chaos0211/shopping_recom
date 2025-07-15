@@ -127,8 +127,49 @@
         </div>
     </footer>
 
+</script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            updateCartCount();
+        });
+
+        function updateCartCount() {
+            axios.get('/cart/count')
+                .then(response => {
+                    if (response.data.success) {
+                        document.getElementById('cart-count').textContent = response.data.count;
+                    }
+                })
+                .catch(error => {
+                    console.error('无法获取购物车数量:', error);
+                });
+        }
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const logoutLink = document.querySelector('.dropdown-item[href$="/logout"]');
+        if (logoutLink) {
+            logoutLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                axios.get(this.href, {
+                    headers: { 'Cache-Control': 'no-cache' }
+                })
+                .then(() => {
+                    // 延迟一点时间再跳转
+                    setTimeout(() => {
+                        window.location.href = '/?logout=' + new Date().getTime();
+                    }, 300);  // 等后端清理 session
+                })
+                .catch(error => {
+                    console.error('登出失败:', error);
+                    window.location.href = '/';
+                });
+            });
+        }
+    });
+</script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
