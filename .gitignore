@@ -1,1 +1,7 @@
 *.jpg
+*.mp3
+__pycache__/
+*.pyc
+.DS_Store
+*.bak
+.idea/
